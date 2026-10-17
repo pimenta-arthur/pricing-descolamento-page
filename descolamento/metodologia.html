@@ -533,6 +533,8 @@ function tabCasos() {
   const base = D.casos[PER_CASOS];
   opcoes(document.getElementById("d-f-per"), [...new Set(base.map(c => c.periodo))].sort(), rotPer);
   opcoes(document.getElementById("d-f-deck"), [...new Set(base.map(c => c.deck))].sort(), rot);
+  // ao abrir a página: 1º semestre de 2026 pré-selecionado
+  if (!tabCasos.iniciado) { tabCasos.iniciado = true; if (base.some(c => c.periodo === "2026-S1")) document.getElementById("d-f-per").value = "2026-S1"; }
   const fp = document.getElementById("d-f-per").value, fd = document.getElementById("d-f-deck").value, fora = document.getElementById("d-f-dentro").checked;
   const L = base.filter(c => (!fp || c.periodo === fp) && (!fd || c.deck === fd) &&
     (!fora || c.NE_real < c.NE_mod_min - 1 || c.NE_real > c.NE_mod_max + 1)).sort((a, b) => (a.periodo + a.deck).localeCompare(b.periodo + b.deck));
