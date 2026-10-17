@@ -51,8 +51,10 @@
   details.fund > summary { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; color: var(--ink); }
   details.fund[open] > summary { margin-bottom: 10px; }
   /* o choque fica dentro da seção de resultado (espaço de 10px); a margem iguala ao espaço entre seções (34px), como nos fundamentos */
-  #det-choque { margin-block: 24px; }
-  .dica { max-width: 360px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
+  #det-choque, #det-hist { margin-block: 24px; }
+  #det-hist + #det-choque { margin-top: 0; }
+  .marca { font-size: 0.7rem; color: var(--ink-3); }
+  .dica { max-width: 480px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
   td.vazio-msg { text-align: center !important; color: var(--ink-3); padding-block: 18px; font-size: 0.9rem; }
   /* deltas do choque em destaque (fundo), antes das colunas de referência */
   #det-choque td.delta, #det-choque th.delta { background: var(--accent-soft); }
@@ -119,6 +121,15 @@
       <p class="leg">Mesma grade da curva do Sudeste. Em cada produto: preço justo (média ponderada dos cenários climáticos) e, embaixo,
         a faixa mínimo–máximo entre cenários. Os seletores valem para esta tabela e para o gráfico.</p>
     </div>
+    <details class="fund" id="det-hist">
+      <summary>Descolamento realizado (histórico)</summary>
+      <div class="bloco">
+        <div class="ttl" id="tt-hist">Descolamento realizado do NE, R$/MWh</div>
+        <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
+        <p class="leg">Mesma grade e mesmos seletores da tabela acima, com o realizado desde 2021 (PLD da CCEE; física do DESSEM). Embaixo, o SE médio do período.
+          ▲ / ▼ = bem mais / menos descolado que a média do mesmo período nos anos disponíveis. Passe o mouse para ver o período contra a média histórica.</p>
+      </div>
+    </details>
     <details class="fund" id="det-choque">
       <summary>Choque no PLD do SE</summary>
       <div class="bloco">
@@ -604,6 +615,91 @@ function sensibilidade(se) {
   }).join("");
 }
 
+// ---------------------------------------------------------------- descolamento realizado (histórico), mesma grade do resultado
+const HM = DADOS.historico || [], IDXH = Object.fromEntries(HM.map((m, i) => [m.mes, i]));
+const ANOS_HIST = [...new Set(HM.map(m => +m.mes.slice(0, 4)))].sort();
+const ABERTOS_HIST = new Set();
+const mesesDe = (y, mm) => mm.map(k => `${y}-${String(k).padStart(2, "0")}`).filter(p => IDXH[p] != null);
+function agrH(ms) {
+  const H = ms.reduce((a, p) => a + HM[IDXH[p]].horas, 0), w = p => HM[IDXH[p]].horas / H, o = {};
+  ["SE", "piso", "d_NE", "d_N", "trava", "renov_NE", "carga_NE", "carga_N", "hidr_N", "sobra_NNE", "exp_NE", "lim_NE"].forEach(f => {
+    o[f] = ms.reduce((a, p) => a + HM[IDXH[p]][f] * w(p), 0); });
+  const ks = ms.reduce((a, p) => a + HM[IDXH[p]].k_soma, 0), kh = ms.reduce((a, p) => a + HM[IDXH[p]].k_horas, 0);
+  o.k = kh >= 20 ? ks / kh : null;
+  const folga = o.SE - o.piso;
+  o.fracao = folga >= 20 ? Math.min(Math.max(-o.d_NE / folga, 0), 1) : null;
+  o.uso = o.lim_NE > 0 ? o.exp_NE / o.lim_NE : null;
+  o.cob = Math.min(...ms.map(p => HM[IDXH[p]].cobertura_dessem ?? 1));
+  return o;
+}
+// mesmos meses do calendário em cada ano com todos eles disponíveis (comparável ao período)
+function comparaveis(ms) {
+  const mm = ms.map(p => +p.slice(5, 7));
+  return ANOS_HIST.map(y => ({ y, ms: mesesDe(y, mm) })).filter(x => x.ms.length === mm.length).map(x => ({ y: x.y, g: agrH(x.ms) }));
+}
+const LINHAS_HIST = [
+  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["NE (% da folga)", g => g.fracao, "pct", "mais"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
+  ["Horas travadas NE", g => g.trava, "pct", "mais"], ["k NE", g => g.k, "k", "mais"], ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"],
+  ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"], ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"],
+  ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"], ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
+];
+function dicaHist(rotulo, ms) {
+  const g = agrH(ms), cmp = comparaveis(ms), anos = cmp.map(c => c.y);
+  const fmt = (v, t) => v == null ? "—" : t === "rs" ? dn(v) : t === "pct" ? pct(v) : t === "k" ? n(v, 2) : n(v, 1);
+  const td = (x, al = "right") => `<td style="padding:1px 0 1px 10px;border:0;text-align:${al};font-family:var(--f-data)">${x}</td>`;
+  const rotMed = `média ${rotulo.replace(/\/\d\d$/, "").replace(/ \d{4}$/, "")} ${anos[0]}–${String(anos.at(-1)).slice(2)}`;
+  let h = `<b>${rotulo}</b> · SE ${n(g.SE, 1)}<table style="border-collapse:collapse;margin-top:4px;font:inherit;color:inherit;background:none">` +
+    `<tr><td style="border:0"></td>${["valor", rotMed, "Δ média", "posição"].map(x => td(`<span style="opacity:.7">${x}</span>`)).join("")}</tr>`;
+  LINHAS_HIST.forEach(([nome, f, t, ordem]) => {
+    const v = f(g), vals = cmp.map(c => f(c.g)).filter(x => x != null);
+    if (v == null && !vals.length) return;
+    const med = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    let d = "—";
+    if (v != null && med != null) {
+      if (t === "pct") d = sn((v - med) * 100, 0) + " p.p.";
+      else if (Math.abs(med) > 0.05) d = sn((v / med - 1) * 100, 0) + "%";
+    }
+    const ord = [...vals].sort((a, b) => ordem === "desc" ? a - b : b - a), pos = v == null ? "—" : `${ord.indexOf(v) + 1}º de ${vals.length}`;
+    h += `<tr><td style="padding:1px 0;border:0">${nome}</td>${td(fmt(v, t))}${td(fmt(med, t))}${td(d)}${td(pos)}</tr>`;
+  });
+  h += `</table><div style="opacity:.7;margin-top:4px">Posição: 1º = mais descolado ou maior valor. % da folga = descolamento ÷ (SE − piso), só anos com SE acima do piso.` +
+    (g.cob < 0.95 ? ` Física com ${pct(g.cob)} das horas do DESSEM no mês com menos dados.` : "") + `</div>`;
+  return h;
+}
+function historicoReal() {
+  const t = document.getElementById("hist-real"); if (!t || !HM.length) return;
+  const pld = MODO === "pld";
+  document.getElementById("tt-hist").textContent = `${pld ? "PLD realizado" : "Descolamento realizado"} do ${SUB}, R$/MWh`;
+  const cel = (ms, rot_, cls = "", compar = true) => {
+    if (!ms.length) return `<td class="${cls}"></td>`;
+    const g = agrH(ms), v = SUB === "NE" ? g.d_NE : g.d_N;
+    let marca = "";
+    if (compar) {
+      const vals = comparaveis(ms).map(c => SUB === "NE" ? c.g.d_NE : c.g.d_N), med = vals.reduce((a, b) => a + b, 0) / vals.length;
+      if (Math.abs(v - med) > Math.max(2, 0.5 * Math.abs(med))) marca = v < med ? ' <span class="marca" title="mais descolado que a média">▲</span>' : ' <span class="marca" title="menos descolado que a média">▼</span>';
+    }
+    return `<td class="${cls}"><div class="cel" data-hist="${ms.join(",")}" data-rot="${rot_}"><b>${pld ? n(g.SE + v, 1) : dn(v)}</b>${marca}<span class="fx">SE ${n(g.SE)}</span></div></td>`;
+  };
+  let h = `<thead><tr><th>Ano</th><th>Ano</th><th>1º sem</th><th>2º sem</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Meses</th></tr></thead><tbody>`;
+  [...ANOS_HIST].reverse().forEach(y => {
+    const ano = mesesDe(y, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), parcial = ano.length < 12;
+    const rotA = parcial ? `${rot(ano[0]).slice(0, 3)}–${rot(ano.at(-1))}` : String(y), yy = String(y).slice(2);
+    const S1 = mesesDe(y, [1, 2, 3, 4, 5, 6]), S2 = mesesDe(y, [7, 8, 9, 10, 11, 12]);
+    const T = [1, 2, 3, 4].map(q => mesesDe(y, [3 * q - 2, 3 * q - 1, 3 * q]));
+    h += `<tr><td><b>${rotA}</b></td>${cel(ano, rotA, "ano-res")}${cel(S1.length === 6 ? S1 : [], `1º sem/${yy}`)}${cel(S2.length === 6 ? S2 : [], `2º sem/${yy}`)}` +
+      T.map((ms, q) => cel(ms.length === 3 ? ms : [], `T${q + 1}/${yy}`)).join("") +
+      `<td><button type="button" class="exp" data-ano="${y}" aria-expanded="${ABERTOS_HIST.has(y)}">${ABERTOS_HIST.has(y) ? "▾ ocultar" : "▸ abrir"}</button></td></tr>`;
+    if (ABERTOS_HIST.has(y)) {
+      h += `<tr class="meses-row"><td></td><td colspan="8"><div style="display:grid;grid-template-columns:repeat(12,minmax(58px,1fr));gap:4px">` +
+        MESES_ABR.map((mm, i) => { const p = `${y}-${String(i + 1).padStart(2, "0")}`; const ok = IDXH[p] != null;
+          return `<div><span class="mlbl">${mm}</span>${ok ? cel([p], rot(p)).replace(/^<td[^>]*>|<\/td>$/g, "") : ""}</div>`; }).join("") + `</div></td></tr>`;
+    }
+  });
+  t.innerHTML = h + "</tbody>";
+  t.querySelectorAll(".exp").forEach(b => b.addEventListener("click", () => { const y = +b.dataset.ano; ABERTOS_HIST.has(y) ? ABERTOS_HIST.delete(y) : ABERTOS_HIST.add(y); historicoReal(); }));
+  t.querySelectorAll(".cel[data-hist]").forEach(c => dicaEm(c, () => dicaHist(c.dataset.rot, c.dataset.hist.split(","))));
+}
+
 // ---------------------------------------------------------------- orquestração
 function atualizar() {
   const r = resolver(); pintarCurva(r);
@@ -614,8 +710,8 @@ function abas(id, cb) {
   document.getElementById(id).addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return;
     document.querySelectorAll(`#${id} button`).forEach(x => x.setAttribute("aria-pressed", String(x === b))); cb(b.dataset.v); });
 }
-abas("abas-sub", v => { SUB = v; resumo(); grafico(); });
-abas("abas-modo", v => { MODO = v; resumo(); grafico(); });
+abas("abas-sub", v => { SUB = v; resumo(); grafico(); historicoReal(); });
+abas("abas-modo", v => { MODO = v; resumo(); grafico(); historicoReal(); });
 abas("abas-prod", v => { PROD = v; tabela(); });
 document.getElementById("btn-csv").addEventListener("click", csv);
 document.getElementById("btn-fund").addEventListener("click", copiarFund);
@@ -643,7 +739,7 @@ document.addEventListener("pointermove", e => {
   const r = d.getBoundingClientRect(), dx = e.clientX + 12 + r.width > innerWidth - 8, dy = e.clientY + 12 + r.height > innerHeight - 8;
   d.style.transform = `translate(${dx ? `calc(-100% - 12px)` : "12px"}, ${dy ? `calc(-100% - 12px)` : "12px"})`;
 });
-desenharCurva(); fundamentos(); tabelaFund(); atualizar();
+desenharCurva(); fundamentos(); tabelaFund(); historicoReal(); atualizar();
 </script>
 </body>
 </html>
