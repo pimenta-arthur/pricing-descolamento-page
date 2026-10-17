@@ -53,7 +53,9 @@
   /* o choque fica dentro da seção de resultado (espaço de 10px); a margem iguala ao espaço entre seções (34px), como nos fundamentos */
   #det-choque { margin-block: 24px; }
   #det-hist { margin-top: 4px; }
-  #det-hist > summary { font-size: 0.95rem; }
+  /* botão do histórico com cara de link, na cor de destaque, sem negrito */
+  #det-hist > summary { font: 400 0.9rem var(--f-body); color: var(--accent); }
+  #det-hist[open] > summary { margin-bottom: 6px; }
   .hist-in { display: grid; gap: 8px; }
   .marca { font-size: 0.7rem; color: var(--ink-3); }
   .dica { max-width: 480px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
@@ -125,7 +127,6 @@
       <details class="fund" id="det-hist">
       <summary>Descolamento realizado (histórico)</summary>
       <div class="hist-in">
-        <div class="ttl" id="tt-hist">Descolamento realizado do NE, R$/MWh</div>
         <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
         <p class="leg">Mesma grade e mesmos seletores da tabela acima, com o realizado desde 2021 (PLD da CCEE; física do DESSEM). Embaixo, o SE médio do período.
           ▲ / ▼ = bem mais / menos descolado que a média do mesmo período nos anos disponíveis. Passe o mouse para ver o período contra a média histórica.</p>
@@ -675,7 +676,6 @@ function dicaHist(rotulo, ms) {
 function historicoReal() {
   const t = document.getElementById("hist-real"); if (!t || !HM.length) return;
   const pld = MODO === "pld";
-  document.getElementById("tt-hist").textContent = `${pld ? "PLD realizado" : "Descolamento realizado"} do ${SUB}, R$/MWh`;
   const cel = (ms, rot_, cls = "", compar = true) => {
     if (!ms.length) return `<td class="${cls}"></td>`;
     const g = agrH(ms), v = SUB === "NE" ? g.d_NE : g.d_N;
