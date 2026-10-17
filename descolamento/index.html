@@ -51,8 +51,10 @@
   details.fund > summary { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; color: var(--ink); }
   details.fund[open] > summary { margin-bottom: 10px; }
   /* o choque fica dentro da seção de resultado (espaço de 10px); a margem iguala ao espaço entre seções (34px), como nos fundamentos */
-  #det-choque, #det-hist { margin-block: 24px; }
-  #det-hist + #det-choque { margin-top: 0; }
+  #det-choque { margin-block: 24px; }
+  #det-hist { margin-top: 4px; }
+  #det-hist > summary { font-size: 0.95rem; }
+  .hist-in { display: grid; gap: 8px; }
   .marca { font-size: 0.7rem; color: var(--ink-3); }
   .dica { max-width: 480px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
   td.vazio-msg { text-align: center !important; color: var(--ink-3); padding-block: 18px; font-size: 0.9rem; }
@@ -120,16 +122,16 @@
       </div>
       <p class="leg">Mesma grade da curva do Sudeste. Em cada produto: preço justo (média ponderada dos cenários climáticos) e, embaixo,
         a faixa mínimo–máximo entre cenários. Os seletores valem para esta tabela e para o gráfico.</p>
-    </div>
-    <details class="fund" id="det-hist">
+      <details class="fund" id="det-hist">
       <summary>Descolamento realizado (histórico)</summary>
-      <div class="bloco">
+      <div class="hist-in">
         <div class="ttl" id="tt-hist">Descolamento realizado do NE, R$/MWh</div>
         <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
         <p class="leg">Mesma grade e mesmos seletores da tabela acima, com o realizado desde 2021 (PLD da CCEE; física do DESSEM). Embaixo, o SE médio do período.
           ▲ / ▼ = bem mais / menos descolado que a média do mesmo período nos anos disponíveis. Passe o mouse para ver o período contra a média histórica.</p>
       </div>
     </details>
+    </div>
     <details class="fund" id="det-choque">
       <summary>Choque no PLD do SE</summary>
       <div class="bloco">
@@ -638,10 +640,12 @@ function comparaveis(ms) {
   return ANOS_HIST.map(y => ({ y, ms: mesesDe(y, mm) })).filter(x => x.ms.length === mm.length).map(x => ({ y: x.y, g: agrH(x.ms) }));
 }
 const LINHAS_HIST = [
-  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["NE (% da folga)", g => g.fracao, "pct", "mais"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
-  ["Horas travadas NE", g => g.trava, "pct", "mais"], ["k NE", g => g.k, "k", "mais"], ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"],
-  ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"], ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"],
-  ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"], ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
+  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
+  ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"], ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"],
+  ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"], ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"],
+  ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
+  "—",
+  ["NE (% da folga)", g => g.fracao, "pct", "mais"], ["Horas travadas NE", g => g.trava, "pct", "mais"], ["k NE", g => g.k, "k", "mais"],
 ];
 function dicaHist(rotulo, ms) {
   const g = agrH(ms), cmp = comparaveis(ms), anos = cmp.map(c => c.y);
@@ -649,8 +653,10 @@ function dicaHist(rotulo, ms) {
   const td = (x, al = "right") => `<td style="padding:1px 0 1px 10px;border:0;text-align:${al};font-family:var(--f-data)">${x}</td>`;
   const rotMed = `média ${rotulo.replace(/\/\d\d$/, "").replace(/ \d{4}$/, "")} ${anos[0]}–${String(anos.at(-1)).slice(2)}`;
   let h = `<b>${rotulo}</b> · SE ${n(g.SE, 1)}<table style="border-collapse:collapse;margin-top:4px;font:inherit;color:inherit;background:none">` +
-    `<tr><td style="border:0"></td>${["valor", rotMed, "Δ média", "posição"].map(x => td(`<span style="opacity:.7">${x}</span>`)).join("")}</tr>`;
-  LINHAS_HIST.forEach(([nome, f, t, ordem]) => {
+    `<tr><td style="border:0"></td>${["valor", rotMed, "posição"].map(x => td(`<span style="opacity:.7">${x}</span>`)).join("")}</tr>`;
+  LINHAS_HIST.forEach(linha => {
+    if (linha === "—") { h += `<tr><td colspan="4" style="border:0;padding:3px 0"><div style="border-top:1px solid color-mix(in srgb, var(--bg) 35%, transparent)"></div></td></tr>`; return; }
+    const [nome, f, t, ordem] = linha;
     const v = f(g), vals = cmp.map(c => f(c.g)).filter(x => x != null);
     if (v == null && !vals.length) return;
     const med = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
@@ -659,8 +665,8 @@ function dicaHist(rotulo, ms) {
       if (t === "pct") d = sn((v - med) * 100, 0) + " p.p.";
       else if (Math.abs(med) > 0.05) d = sn((v / med - 1) * 100, 0) + "%";
     }
-    const ord = [...vals].sort((a, b) => ordem === "desc" ? a - b : b - a), pos = v == null ? "—" : `${ord.indexOf(v) + 1}º de ${vals.length}`;
-    h += `<tr><td style="padding:1px 0;border:0">${nome}</td>${td(fmt(v, t))}${td(fmt(med, t))}${td(d)}${td(pos)}</tr>`;
+    const ord = [...vals].sort((a, b) => ordem === "desc" ? a - b : b - a), pos = v == null ? "—" : `${ord.indexOf(v) + 1}º/${vals.length}`;
+    h += `<tr><td style="padding:1px 0;border:0">${nome}</td>${td(fmt(v, t))}${td(`${fmt(med, t)}${d !== "—" ? ` (${d})` : ""}`)}${td(pos)}</tr>`;
   });
   h += `</table><div style="opacity:.7;margin-top:4px">Posição: 1º = mais descolado ou maior valor. % da folga = descolamento ÷ (SE − piso), só anos com SE acima do piso.` +
     (g.cob < 0.95 ? ` Física com ${pct(g.cob)} das horas do DESSEM no mês com menos dados.` : "") + `</div>`;
