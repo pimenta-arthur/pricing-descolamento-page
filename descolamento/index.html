@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Descolamento NE e N</title>
+<!-- Padrão visual Quant Energia · v1 · 2026-10 · página de precificação do descolamento (NE e N × SE).
+     Dados: dados.js, gerado por `uv run python -m pricing_descolamento_analytics.web`. O navegador recalcula o
+     modelo exato para a curva de SE digitada: d = −Σ_h c_h · máx(SE · perfil_h − piso, 0), por mês e cenário. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../padrao/base.css">
+<link rel="stylesheet" href="../padrao/painel.css">
+<style>
+  main { grid-template-columns: minmax(0, 1fr); }  /* tabelas largas rolam dentro do bloco, não a página */
+  /* curva do SE: tabela de entrada */
+  .curva { width: 100%; min-width: 760px; }
+  .curva th, .curva td { padding: 6px 6px; border-bottom: 1px solid var(--rule); text-align: center; }
+  .curva th:first-child, .curva td:first-child { white-space: nowrap; text-align: left; position: sticky; left: 0; background: var(--surface); }
+  .curva td.ano-col { border-right: 1px solid var(--rule); }
+  .curva td.sem-col:last-of-type { border-right: 1px solid var(--rule); }
+  .curva input { width: 100%; min-width: 58px; font: 500 0.88rem var(--f-data); text-align: right; color: var(--ink); background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 5px 6px; }
+  .curva input::placeholder { color: var(--ink-3); font-weight: 400; opacity: 1; }
+  .curva input:focus { outline: 2px solid var(--accent); outline-offset: 0; background: var(--surface); }
+  .curva input.digitado { border-color: var(--accent); background: var(--surface); }
+  .curva input.alerta { border-color: var(--v1); }
+  .curva input:disabled { visibility: hidden; }
+  .curva .meses-row td { background: var(--bg); }
+  .curva .meses-row .mlbl { display: block; font: 400 0.68rem var(--f-data); color: var(--ink-3); text-transform: lowercase; margin-bottom: 2px; }
+  .curva button.exp { white-space: nowrap; font: 500 0.8rem var(--f-data); color: var(--accent); background: none; border: 0; cursor: pointer; padding: 2px 4px; }
+  .controles { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; font-size: 0.88rem; color: var(--ink-2); }
+  .controles input[type=text] { width: 80px; font: 500 0.88rem var(--f-data); text-align: right; border: 1px solid var(--rule); border-radius: 4px; padding: 5px 6px; background: var(--bg); color: var(--ink); }
+  .btn { font: 500 0.85rem var(--f-body); color: var(--ink-2); background: var(--bg); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .btn.prim { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .controles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .avisos-curva { font-size: 0.82rem; color: var(--v1); display: grid; gap: 2px; }
+  .avisos-curva:empty { display: none; }
+  /* resultado: mesma grade da entrada, só leitura */
+  .curva.leitura .cel { font: 500 0.88rem var(--f-data); font-variant-numeric: tabular-nums; text-align: right; padding: 5px 6px; border: 1px solid transparent; border-radius: 4px; min-width: 58px; }
+  .curva.leitura .cel b { font-weight: 600; }
+  .curva.leitura .cel .fx { display: block; font-size: 0.68rem; color: var(--ink-3); white-space: nowrap; }
+  .curva.leitura td.ano-res .cel { background: var(--accent-soft); }
+  .curva.leitura .cel.vazio { color: var(--ink-3); }
+  /* resultado */
+  .tile .v.neg { color: var(--ink); }
+  .tile .f { font: 400 0.78rem var(--f-data); color: var(--ink-3); }
+  td .fx { display: block; white-space: nowrap; font-size: 0.72rem; color: var(--ink-3); }
+  tr.parcial td:first-child::after { content: " (parcial)"; color: var(--ink-3); font-size: 0.75rem; }
+  details.fund > summary { font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; color: var(--ink); }
+  details.fund[open] > summary { margin-bottom: 10px; }
+  /* o choque fica dentro da seção de resultado (espaço de 10px); a margem iguala ao espaço entre seções (34px), como nos fundamentos */
+  #det-choque { margin-block: 24px; }
+  .dica { max-width: 360px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
+  td.vazio-msg { text-align: center !important; color: var(--ink-3); padding-block: 18px; font-size: 0.9rem; }
+  /* deltas do choque em destaque (fundo), antes das colunas de referência */
+  #det-choque td.delta, #det-choque th.delta { background: var(--accent-soft); }
+  .mini svg { width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Páginas">
+    <a class="marca" href="/">Quant Energia</a>
+    <a href="./index.html" aria-current="page">Descolamento NE e N</a>
+    <a href="metodologia.html">Metodologia</a>
+  </nav>
+
+  <section class="hero" aria-labelledby="titulo">
+    <span class="rotulo" id="rot-horiz">Horizonte</span>
+    <h1 id="titulo">Descolamento de Preço do NE e do N em Relação ao SE</h1>
+    <div class="meta" id="meta"></div>
+  </section>
+
+  <!-- 1. entrada -->
+  <section aria-labelledby="s-curva">
+    <h2 id="s-curva">Curva do Sudeste</h2>
+    <p class="leg">Informe o PLD médio do SE (R$/MWh) no nível em que tiver preço: ano, semestre, trimestre ou mês. Vale o
+      nível mais específico; os demais períodos do mesmo ano são derivados (em cinza) para fechar a média ponderada
+      por horas. Pode colar uma linha do Excel em qualquer campo.</p>
+    <div class="controles">
+      <span>Preencher todos os anos com <input type="text" id="valor-todos" inputmode="decimal" value="" placeholder="R$" aria-label="Valor do SE para todos os anos"> R$/MWh</span>
+      <button type="button" class="btn prim" id="btn-todos">Aplicar</button>
+      <button type="button" class="btn" id="btn-limpar">Limpar curva</button>
+      <span>Dentro do período:</span>
+      <label><input type="radio" name="saz" value="plana" checked> plana</label>
+      <label><input type="radio" name="saz" value="hist"> sazonalidade histórica do SE</label>
+    </div>
+    <div class="bloco">
+      <div class="rolagem">
+        <table class="curva" id="curva"></table>
+      </div>
+      <div class="avisos-curva" id="avisos-curva"></div>
+      <p class="leg" id="leg-curva"></p>
+    </div>
+  </section>
+
+  <!-- 2. resultado -->
+  <section aria-labelledby="s-res">
+    <h2 id="s-res">Descolamento previsto</h2>
+    <div class="bloco">
+      <div class="barra-abas">
+        <div class="ttl" id="tt-res">Descolamento do NE por produto, R$/MWh</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="abas" id="abas-sub" role="group" aria-label="Submercado">
+            <button type="button" data-v="NE" aria-pressed="true">NE</button>
+            <button type="button" data-v="N">N</button>
+          </div>
+          <div class="abas" id="abas-modo" role="group" aria-label="Medida">
+            <button type="button" data-v="d" aria-pressed="true">Descolamento</button>
+            <button type="button" data-v="pld">PLD implícito</button>
+          </div>
+        </div>
+      </div>
+      <div class="rolagem">
+        <table class="curva leitura" id="resumo"></table>
+      </div>
+      <p class="leg">Mesma grade da curva do Sudeste. Em cada produto: preço justo (média ponderada dos cenários climáticos) e, embaixo,
+        a faixa mínimo–máximo entre cenários. Os seletores valem para esta tabela e para o gráfico.</p>
+    </div>
+    <details class="fund" id="det-choque">
+      <summary>Choque no PLD do SE</summary>
+      <div class="bloco">
+        <div class="controles">
+          <span>Choque de <input type="text" id="choque" inputmode="decimal" value="10" aria-label="Tamanho do choque"></span>
+          <label><input type="radio" name="choque-un" value="rs" checked> R$/MWh</label>
+          <label><input type="radio" name="choque-un" value="pct"> % do SE</label>
+          <span class="abas" id="atalhos-choque" role="group" aria-label="Atalhos">
+            <button type="button" data-v="-30">−30</button><button type="button" data-v="-10">−10</button>
+            <button type="button" data-v="10" aria-pressed="true">+10</button><button type="button" data-v="30">+30</button>
+          </span>
+        </div>
+        <div class="rolagem"><table>
+          <thead><tr><th>Período</th><th class="n delta">Δ NE</th><th class="n delta ult">Δ N</th><th class="n">SE base</th><th class="n">SE com choque</th>
+            <th class="n">NE base</th><th class="n">NE com choque</th><th class="n">N base</th><th class="n">N com choque</th></tr></thead>
+          <tbody id="tab-sens"></tbody>
+        </table></div>
+        <p class="leg" id="leg-choque">O choque é aplicado à curva do SE informada, em todos os meses. A resposta não é simétrica: com o SE perto do piso, um
+          choque para baixo zera o descolamento em várias horas; ela também muda com a hora do dia em que o NE trava e com o semestre.</p>
+      </div>
+    </details>
+    <div class="legenda-mini" id="leg-graf"></div>
+    <div class="bloco">
+      <div class="barra-abas">
+        <div class="ttl" id="tt-graf">Descolamento do NE por mês, R$/MWh</div>
+      </div>
+      <svg id="g-mes" viewBox="0 0 1040 280" role="img" aria-label="Descolamento previsto por mês"></svg>
+      <p class="leg" id="leg-g"></p>
+    </div>
+    <div class="bloco">
+      <div class="barra-abas">
+        <div class="ttl">Preço justo por produto, R$/MWh</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <div class="abas" id="abas-prod" role="group" aria-label="Produto">
+            <button type="button" data-v="mes">Mês</button>
+            <button type="button" data-v="tri">Trimestre</button>
+            <button type="button" data-v="sem">Semestre</button>
+            <button type="button" data-v="ano" aria-pressed="true">Ano</button>
+          </div>
+          <button type="button" class="btn" id="btn-csv">Copiar tabela</button><span class="leg" id="copiado" aria-live="polite"></span>
+        </div>
+      </div>
+      <div class="rolagem">
+        <table>
+          <thead><tr><th>Período</th><th class="n">SE</th><th class="n">NE justo</th><th class="n">N justo</th><th class="n">PLD NE</th><th class="n">PLD N</th><th class="n">% horas travadas NE</th></tr></thead>
+          <tbody id="tab-prod"></tbody>
+        </table>
+      </div>
+      <p class="leg">Preço justo = média ponderada dos cenários climáticos; abaixo, em cinza, a faixa mínimo–máximo entre cenários
+        (cada cenário agregado no período). Descolamento negativo = NE/N abaixo do SE. PLD implícito = SE + descolamento.</p>
+    </div>
+  </section>
+
+  <!-- 3. fundamentos -->
+  <section aria-labelledby="s-fund">
+    <details class="fund" id="det-fund">
+      <summary id="s-fund">Fundamentos do deck</summary>
+      <div style="display:grid;gap:12px">
+        <p class="leg">Insumos que entram no modelo, por mês (média dos cenários): projeção do deck (linha) e último realizado do
+          mesmo mês do calendário (pontos). Não dependem da curva do SE.</p>
+        <div class="mini6" id="mult"></div>
+        <div class="bloco">
+          <div class="barra-abas">
+            <div class="ttl">Fundamentos por produto, GW (trava em % das horas)</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+              <div class="abas" id="abas-fund" role="group" aria-label="Produto">
+                <button type="button" data-v="mes">Mês</button>
+                <button type="button" data-v="tri">Trimestre</button>
+                <button type="button" data-v="sem">Semestre</button>
+                <button type="button" data-v="ano" aria-pressed="true">Ano</button>
+              </div>
+              <button type="button" class="btn" id="btn-fund">Copiar tabela</button><span class="leg" id="copiado-fund" aria-live="polite"></span>
+            </div>
+          </div>
+          <div class="rolagem"><table>
+            <thead><tr><th>Período</th><th class="n">Renov. NE</th><th class="n">Carga NE</th><th class="n">Carga N</th>
+              <th class="n">Hidr. N</th><th class="n">Sobra NE</th><th class="n">Lim. exp. NE</th>
+              <th class="n">Folga lim.</th><th class="n">Trava NE</th><th class="n">k NE</th></tr></thead>
+            <tbody id="tab-fund"></tbody>
+          </table></div>
+          <p class="leg">Em negrito, o valor que entra no modelo (projeção do deck; hidráulica do N = média dos cenários). Embaixo, em cinza,
+            o último realizado dos mesmos meses do calendário (para 2027 em diante a referência continua sendo o último ano realizado).
+            Sobra NE = renovável − carga do NE; folga lim. = limite de exportação do NE − sobra: quanto menor, mais o NE trava.
+            k = fração de (SE − piso) perdida nas horas em que trava.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- 4. evolução (registro do que vem depois; nada disto está implementado) -->
+  <section aria-labelledby="s-prox">
+    <h2 id="s-prox">Próximos passos</h2>
+    <div class="grid2">
+      <div class="bloco">
+        <div class="ttl">Curvas de compra e de venda</div>
+        <p class="leg">Preço de compra e de venda do descolamento em torno do preço justo, por produto, a partir da distribuição dos
+          cenários e do erro histórico do modelo, com backtest de resultado (PnL). Depende de alinhar com a mesa como o produto é negociado.</p>
+      </div>
+      <div class="bloco">
+        <div class="ttl">Descolamento do Sul</div>
+        <p class="leg">Física própria do Sul (descola para cima, no horário solar), com o mesmo desenho: entrada pela curva do SE e
+          faixa por cenário climático.</p>
+      </div>
+      <div class="bloco">
+        <div class="ttl">Comparar versões do modelo</div>
+        <p class="leg">Mostrar lado a lado a versão vigente (v2.2) e candidatas rodando em paralelo como modelo-sombra, a começar
+          pelo 7d-1S (k do 1º semestre pela sobra N+NE), com o histórico de acerto de cada uma a cada deck.</p>
+      </div>
+      <div class="bloco">
+        <div class="ttl">Mês corrente e atualização automática</div>
+        <p class="leg">Precificar o mês corrente com informação do próprio mês (revisões do DECOMP/DESSEM, realizado parcial) e
+          atualizar a página a cada deck novo, sem passo manual.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="aviso">
+    <span>Modelo estrutural horário condicionado à curva do SE informada; o SE nunca vem do NEWAVE. A faixa representa a
+      variabilidade climática (anos históricos), não um intervalo de confiança completo: não inclui o risco de regime
+      do 1º semestre (trava rasa × funda) nem o erro dos insumos do deck. O mês corrente não é precificado nesta versão.
+      Limitações e testes em <a href="metodologia.html">Metodologia</a> (seção 33).</span>
+  </div>
+</main>
+<div class="dica" id="dica" hidden></div>
+<script src="../padrao/graficos.js"></script>
+<script src="dados.js"></script>
+<script>
+"use strict";
+// ---------------------------------------------------------------- dados e utilidades
+const M = DADOS.meses;                          // [{mes, horas, piso, perfil[24], cen[{id, peso, cNE, cN, trava, k}], fund, real}]
+const IDX = Object.fromEntries(M.map((m, i) => [m.mes, i]));
+const ANOS = [...new Set(M.map(m => +m.mes.slice(0, 4)))];
+const SAZ = DADOS.sazonal_se.fator;             // SE do mês ÷ média do ano (anos completos)
+const ano = p => +p.slice(0, 4), mesN = p => +p.slice(5, 7);
+const dn = (v, c = 1) => (v == null || !isFinite(v) ? "—" : (v < -0.5 * 10 ** -c ? "−" : "") + n(Math.abs(v), c));
+const parseNum = s => { if (s == null) return null; s = String(s).trim().replace(/\s/g, "").replace(/R\$/i, ""); if (!s) return null;
+  if (s.includes(",")) s = s.replace(/\./g, "").replace(",", "."); const v = Number(s); return isFinite(v) ? v : null; };
+
+// períodos de cada ano dentro do horizonte
+function periodosDoAno(y) {
+  const ms = M.filter(m => ano(m.mes) === y).map(m => m.mes);
+  const S = [1, 2].map(s => ({ k: `S${y}-${s}`, rot: `${s}º sem/${String(y).slice(2)}`, meses: ms.filter(p => (mesN(p) <= 6) === (s === 1)) }));
+  const T = [1, 2, 3, 4].map(t => ({ k: `T${y}-${t}`, rot: `T${t}/${String(y).slice(2)}`, sem: t <= 2 ? 1 : 2, meses: ms.filter(p => Math.ceil(mesN(p) / 3) === t) }));
+  return { y, k: `A${y}`, rot: ms.length === 12 ? String(y) : `${rot(ms[0]).slice(0, 3)}–${rot(ms.at(-1))}`, meses: ms, S, T };
+}
+const PER = ANOS.map(periodosDoAno);
+const horas = ms => ms.reduce((a, p) => a + M[IDX[p]].horas, 0);
+
+// ---------------------------------------------------------------- estado da curva (persistido no navegador)
+let ENT = {};                                   // chave → valor digitado (A2027, S2027-1, T2027-3, M2027-05)
+let SAZMODO = "plana";
+// a página abre vazia: o usuário informa a curva (chave v2 ignora curvas salvas antes desta mudança)
+try { const s = JSON.parse(localStorage.getItem("descolamento.curva.v2") || "null"); if (s) { ENT = s.ent || {}; SAZMODO = s.saz || "plana"; } } catch (e) {}
+const salvar = () => { try { localStorage.setItem("descolamento.curva.v2", JSON.stringify({ ent: ENT, saz: SAZMODO })); } catch (e) {} };
+
+// ---------------------------------------------------------------- resolução da curva: do ano ao mês
+// Cada nó vale o digitado ou, se não houver, o derivado do pai. Filhos não digitados dividem o que falta para
+// fechar a média do pai (ponderada por horas), na proporção da sazonalidade escolhida (plana = iguais).
+function fatorSaz(ms) { if (SAZMODO !== "hist") return 1; let a = 0, h = 0; ms.forEach(p => { const hh = M[IDX[p]].horas; a += SAZ[mesN(p) - 1] * hh; h += hh; }); return a / h; }
+function resolver() {
+  const se = {}, info = {}, avisos = [];
+  function no(chave, ms, herdado, filhos) {      // filhos: [{chave, meses, filhos}]
+    const dig = ENT[chave];
+    const v = dig != null ? dig : herdado;
+    info[chave] = { v, digitado: dig != null };
+    if (!filhos) { if (v != null) ms.forEach(p => { se[p] = v; }); return; }
+    const vivos = filhos.filter(f => f.meses.length);
+    const fixos = vivos.filter(f => ENT[f.chave] != null), livres = vivos.filter(f => ENT[f.chave] == null);
+    let herdF = {};
+    if (v != null) {
+      const H = horas(ms), Hf = fixos.reduce((a, f) => a + horas(f.meses) * ENT[f.chave], 0);
+      const Hl = livres.reduce((a, f) => a + horas(f.meses), 0);
+      if (livres.length) {
+        const alvo = (v * H - Hf) / Hl;             // média que os livres precisam ter
+        const norm = livres.reduce((a, f) => a + fatorSaz(f.meses) * horas(f.meses), 0) / Hl;
+        livres.forEach(f => { herdF[f.chave] = alvo * fatorSaz(f.meses) / norm; });
+      } else if (Math.abs(Hf / H - v) > 0.05) {
+        avisos.push(`${rotuloChave(chave)}: os períodos informados dão média ${n(Hf / H, 1)}, diferente de ${n(v, 1)}.`);
+      }
+    }
+    vivos.forEach(f => no(f.chave, f.meses, herdF[f.chave], f.filhos));
+  }
+  PER.forEach(a => {
+    const meses = p => ({ chave: `M${p}`, meses: [p] });
+    const tri = a.T.map(t => ({ chave: t.k, meses: t.meses, filhos: t.meses.map(meses) }));
+    const sem = a.S.map((s, i) => ({ chave: s.k, meses: s.meses, filhos: tri.filter((t, j) => a.T[j].sem === i + 1) }));
+    no(a.k, a.meses, undefined, sem);
+  });
+  // valor informativo dos nós sem valor próprio: média dos meses, quando todos definidos
+  PER.forEach(a => [{ k: a.k, meses: a.meses }, ...a.S, ...a.T].forEach(p => {
+    if (!p.meses.length) return;
+    if (info[p.k] && info[p.k].v == null && p.meses.every(q => se[q] != null))
+      info[p.k] = { v: p.meses.reduce((s, q) => s + se[q] * M[IDX[q]].horas, 0) / horas(p.meses), digitado: false, media: true };
+  }));
+  Object.entries(se).forEach(([p, v]) => { if (v < M[IDX[p]].piso) avisos.push(`${rot(p)}: SE derivado de ${n(v, 1)} abaixo do piso (${n(M[IDX[p]].piso, 2)}); descolamento zero.`); });
+  return { se, info, avisos: [...new Set(avisos)].slice(0, 6) };
+}
+function rotuloChave(k) {
+  if (k[0] === "A") return k.slice(1); if (k[0] === "M") return rot(k.slice(1));
+  const [y, i] = k.slice(1).split("-"); return k[0] === "S" ? `${i}º sem/${y.slice(2)}` : `T${i}/${y.slice(2)}`;
+}
+
+// ---------------------------------------------------------------- modelo (exato) no navegador
+function calcular(se, ajuste = x => x) {
+  const res = {};
+  M.forEach(m => {
+    const s = se[m.mes]; if (s == null) return;
+    const S = ajuste(s), fol = m.perfil.map(r => Math.max(S * r - m.piso, 0));
+    const cen = m.cen.map(c => ({ id: c.id, peso: c.peso, NE: -c.cNE.reduce((a, v, h) => a + v * fol[h], 0), N: -c.cN.reduce((a, v, h) => a + v * fol[h], 0), trava: c.trava, k: c.k }));
+    const W = cen.reduce((a, c) => a + c.peso, 0), med = f => cen.reduce((a, c) => a + c.peso * c[f], 0) / W;
+    res[m.mes] = { se: S, NE: med("NE"), N: med("N"), trava: med("trava"), cen,
+      NEmin: Math.min(...cen.map(c => c.NE)), NEmax: Math.max(...cen.map(c => c.NE)), Nmin: Math.min(...cen.map(c => c.N)), Nmax: Math.max(...cen.map(c => c.N)) };
+  });
+  return res;
+}
+// agrega um período: justo oficial (média por mês, ponderada por horas); faixa só com cenários presentes em todos os meses
+function agregar(res, ms) {
+  if (!ms.length || ms.some(p => !res[p])) return null;
+  const H = horas(ms), wm = p => M[IDX[p]].horas / H, out = { se: 0, NE: 0, N: 0, trava: 0 };
+  ms.forEach(p => ["se", "NE", "N", "trava"].forEach(f => { out[f] += res[p][f] * wm(p); }));
+  const ids = res[ms[0]].cen.map(c => c.id).filter(id => ms.every(p => res[p].cen.some(c => c.id === id)));
+  const porCen = ids.map(id => { const o = { NE: 0, N: 0 }; ms.forEach(p => { const c = res[p].cen.find(x => x.id === id); o.NE += c.NE * wm(p); o.N += c.N * wm(p); }); return o; });
+  if (porCen.length) { out.NEmin = Math.min(...porCen.map(c => c.NE)); out.NEmax = Math.max(...porCen.map(c => c.NE)); out.Nmin = Math.min(...porCen.map(c => c.N)); out.Nmax = Math.max(...porCen.map(c => c.N)); }
+  return out;
+}
+function produtos(tipo) {
+  const L = [];
+  PER.forEach(a => {
+    if (tipo === "ano") L.push({ rot: a.rot, meses: a.meses, parcial: a.meses.length < 12 });
+    if (tipo === "sem") a.S.forEach(s => s.meses.length && L.push({ rot: s.rot, meses: s.meses, parcial: s.meses.length < 6 }));
+    if (tipo === "tri") a.T.forEach(t => t.meses.length && L.push({ rot: t.rot, meses: t.meses, parcial: t.meses.length < 3 }));
+    if (tipo === "mes") a.meses.forEach(p => L.push({ rot: rot(p), meses: [p], parcial: false }));
+  });
+  return L;
+}
+
+// ---------------------------------------------------------------- tabela de entrada
+const MESES_ABR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const ABERTOS = new Set();
+function desenharCurva() {
+  const t = document.getElementById("curva");
+  let h = `<thead><tr><th>Ano</th><th>Ano</th><th>1º sem</th><th>2º sem</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Meses</th></tr></thead><tbody>`;
+  PER.forEach(a => {
+    const inp = (k, ok) => `<td><input type="text" inputmode="decimal" data-k="${k}" ${ok ? "" : "disabled"} aria-label="SE ${rotuloChave(k)}"></td>`;
+    h += `<tr data-ano="${a.y}"><td><b>${a.rot}</b></td>${inp(a.k, true)}${a.S.map(s => inp(s.k, s.meses.length)).join("")}${a.T.map(x => inp(x.k, x.meses.length)).join("")}` +
+      `<td><button type="button" class="exp" data-ano="${a.y}" aria-expanded="${ABERTOS.has(a.y)}">${ABERTOS.has(a.y) ? "▾ ocultar" : "▸ abrir"}</button></td></tr>`;
+    if (ABERTOS.has(a.y)) {
+      h += `<tr class="meses-row"><td></td><td colspan="8"><div style="display:grid;grid-template-columns:repeat(12,minmax(58px,1fr));gap:4px">` +
+        MESES_ABR.map((mm, i) => { const p = `${a.y}-${String(i + 1).padStart(2, "0")}`, ok = IDX[p] != null;
+          return `<label><span class="mlbl">${mm}</span><input type="text" inputmode="decimal" data-k="M${p}" ${ok ? "" : "disabled"} aria-label="SE ${rot(p)}"></label>`; }).join("") + `</div></td></tr>`;
+    }
+  });
+  t.innerHTML = h + "</tbody>";
+  t.querySelectorAll(".exp").forEach(b => b.addEventListener("click", () => { const y = +b.dataset.ano; ABERTOS.has(y) ? ABERTOS.delete(y) : ABERTOS.add(y); desenharCurva(); atualizar(); }));
+  t.querySelectorAll("input[data-k]").forEach(i => {
+    i.addEventListener("change", () => { const v = parseNum(i.value); if (v == null) delete ENT[i.dataset.k]; else ENT[i.dataset.k] = v; salvar(); atualizar(); });
+    i.addEventListener("paste", ev => {
+      const txt = (ev.clipboardData || window.clipboardData).getData("text"); if (!/[\t\n]/.test(txt.trim())) return;
+      ev.preventDefault();
+      const vals = txt.trim().split(/[\t\n\r]+/).map(parseNum), todos = [...t.querySelectorAll("input[data-k]:not(:disabled)")];
+      let j = todos.indexOf(i);
+      vals.forEach(v => { const alvo = todos[j++]; if (!alvo) return; if (v == null) delete ENT[alvo.dataset.k]; else ENT[alvo.dataset.k] = v; });
+      salvar(); atualizar();
+    });
+  });
+}
+function pintarCurva(r) {
+  document.querySelectorAll("#curva input[data-k]").forEach(i => {
+    const k = i.dataset.k, inf = r.info[k], dig = ENT[k] != null;
+    if (document.activeElement !== i) i.value = dig ? n(ENT[k], 2).replace(/,00$/, "") : "";
+    i.placeholder = !dig && inf && inf.v != null ? n(inf.v, 1) : "";
+    i.classList.toggle("digitado", dig);
+    i.classList.toggle("alerta", !!(inf && inf.v != null && inf.v < DADOS.meta.piso));
+  });
+  document.getElementById("avisos-curva").innerHTML = r.avisos.map(a => `<span>⚠ ${a}</span>`).join("");
+  document.getElementById("leg-curva").textContent = `Azul = digitado; cinza = derivado. Dentro de cada período sem preço próprio, a curva é ${SAZMODO === "hist" ? `distribuída pela sazonalidade média do SE (${DADOS.sazonal_se.anos[0]}–${DADOS.sazonal_se.anos.at(-1)}, instável entre anos)` : "plana"}. Piso ${DADOS.meta.piso.toLocaleString("pt-BR")} e teto ${DADOS.meta.teto.toLocaleString("pt-BR")} R$/MWh de ${DADOS.meta.deck.slice(0, 4)} (usados no horizonte).`;
+}
+
+// ---------------------------------------------------------------- resultado
+let SUB = "NE", MODO = "d", PROD = "ano", RES = {};
+// detalhe do preço justo por ano climático (cada cenário agregado no período, ponderado por horas)
+function detalheAnos(ms) {
+  const pld = MODO === "pld", H = horas(ms), linhas = [];
+  const ids = [...new Set(ms.flatMap(p => RES[p].cen.map(c => c.id)))];
+  ids.forEach(id => {
+    const presentes = ms.filter(p => RES[p].cen.some(c => c.id === id));
+    const Hp = horas(presentes);
+    const v = presentes.reduce((a, p) => { const c = RES[p].cen.find(x => x.id === id); return a + ((pld ? RES[p].se : 0) + c[SUB]) * M[IDX[p]].horas / Hp; }, 0);
+    linhas.push({ ano: id.split("|")[0], v, parcial: presentes.length < ms.length, meses: presentes });
+  });
+  linhas.sort((a, b) => a.ano.localeCompare(b.ano));
+  const comp = linhas.filter(l => !l.parcial), vs = comp.map(l => l.v);
+  const mais = Math.min(...vs), menos = Math.max(...vs);
+  const g = agregar(RES, ms), justo = (pld ? g.se : 0) + g[SUB];
+  const fmt = v => pld ? n(v, 1) : dn(v);
+  let h = `<div style="margin-top:6px;padding-top:6px;border-top:1px solid color-mix(in srgb, var(--bg) 35%, transparent)">Por ano climático (${SUB}${pld ? ", PLD implícito" : ""})</div>`;
+  h += `<table style="border-collapse:collapse;font:inherit;color:inherit;background:none">` + linhas.map(l => {
+    const nota = l.parcial ? ` <span style="opacity:.7">parcial (${rot(l.meses[0])}${l.meses.length > 1 ? "–" + rot(l.meses.at(-1)) : ""})</span>` :
+      comp.length > 1 && l.v === mais ? ` <span style="opacity:.7">← mais descolado</span>` : comp.length > 1 && l.v === menos ? ` <span style="opacity:.7">← menos descolado</span>` : "";
+    return `<tr><td style="padding:0 10px 0 0;border:0">${l.ano}</td><td style="padding:0;border:0;text-align:right;font-family:var(--f-data)">${fmt(l.v)}</td><td style="padding:0 0 0 6px;border:0">${nota}</td></tr>`;
+  }).join("") + `<tr><td style="padding:2px 10px 0 0;border:0"><b>preço justo</b></td><td style="padding:2px 0 0;border:0;text-align:right;font-family:var(--f-data)"><b>${fmt(justo)}</b></td><td style="border:0"></td></tr></table>`;
+  h += `<div style="opacity:.7;margin-top:4px">Cada ano traz vento, sol, hidrologia e o k observado nele.${linhas.some(l => l.parcial) ? " O justo é calculado mês a mês; o ano parcial entra só nos meses que tem." : ""}</div>`;
+  return h;
+}
+const ABERTOS_RES = new Set();
+function resumo() {
+  const pld = MODO === "pld";
+  document.getElementById("tt-res").textContent = `${pld ? "PLD implícito" : "Descolamento"} do ${SUB} por produto, R$/MWh`;
+  const cel = (ms, cls = "") => {
+    const g = ms.length ? agregar(RES, ms) : null;
+    if (!ms.length) return `<td class="${cls}"></td>`;
+    if (!g) return `<td class="${cls}"><div class="cel vazio">—</div></td>`;
+    const base = pld ? g.se : 0, fx = g[SUB + "min"] != null ? `<span class="fx">${dn(base + g[SUB + "min"])} a ${dn(base + g[SUB + "max"])}</span>` : "";
+    return `<td class="${cls}"><div class="cel" data-dica="${ms[0]}|${ms.at(-1)}"><b>${pld ? n(base + g[SUB], 1) : dn(g[SUB])}</b>${fx}</div></td>`;
+  };
+  let h = `<thead><tr><th>Ano</th><th>Ano</th><th>1º sem</th><th>2º sem</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>Meses</th></tr></thead><tbody>`;
+  PER.forEach(a => {
+    h += `<tr><td><b>${a.rot}</b></td>${cel(a.meses, "ano-res")}${a.S.map(x => cel(x.meses)).join("")}${a.T.map(x => cel(x.meses)).join("")}` +
+      `<td><button type="button" class="exp" data-ano="${a.y}" aria-expanded="${ABERTOS_RES.has(a.y)}">${ABERTOS_RES.has(a.y) ? "▾ ocultar" : "▸ abrir"}</button></td></tr>`;
+    if (ABERTOS_RES.has(a.y)) {
+      h += `<tr class="meses-row"><td></td><td colspan="8"><div style="display:grid;grid-template-columns:repeat(12,minmax(58px,1fr));gap:4px">` +
+        MESES_ABR.map((mm, i) => { const p = `${a.y}-${String(i + 1).padStart(2, "0")}`; const ok = IDX[p] != null;
+          return `<div><span class="mlbl">${mm}</span>${ok ? cel([p]).replace(/^<td[^>]*>|<\/td>$/g, "") : ""}</div>`; }).join("") + `</div></td></tr>`;
+    }
+  });
+  const t = document.getElementById("resumo");
+  if (!Object.keys(RES).length) h += `<tr><td colspan="9" class="vazio-msg">Informe a curva do Sudeste acima para ver o descolamento por produto.</td></tr>`;
+  t.innerHTML = h + "</tbody>";
+  t.querySelectorAll(".exp").forEach(b => b.addEventListener("click", () => { const y = +b.dataset.ano; ABERTOS_RES.has(y) ? ABERTOS_RES.delete(y) : ABERTOS_RES.add(y); resumo(); }));
+  t.querySelectorAll(".cel[data-dica]").forEach(c => {
+    const [p0, p1] = c.dataset.dica.split("|"), ms = M.map(m => m.mes).filter(p => p >= p0 && p <= p1), g = agregar(RES, ms);
+    dicaEm(c, `<b>${p0 === p1 ? rot(p0) : rot(p0) + " a " + rot(p1)}</b> · SE ${n(g.se, 1)}<br>NE ${dn(g.NE)} · N ${dn(g.N)}<br>PLD NE ${n(g.se + g.NE, 1)} · PLD N ${n(g.se + g.N, 1)}` + detalheAnos(ms));
+  });
+}
+function grafico() {
+  const svg = document.getElementById("g-mes"), w = 1040, h = 280, mg = { l: 48, r: 12, t: 14, b: 28 };
+  svg.replaceChildren();
+  const ms = M.map(m => m.mes).filter(p => RES[p]);
+  const pld = MODO === "pld";
+  document.getElementById("tt-graf").textContent = `${pld ? "PLD implícito" : "Descolamento"} do ${SUB} por mês, R$/MWh`;
+  document.getElementById("leg-graf").innerHTML = pld
+    ? `<span><i class="l" style="border-color:var(--accent)"></i>PLD ${SUB} justo</span><span><i style="background:var(--faixa-proj)"></i>Faixa entre cenários</span><span><i class="l" style="border-color:var(--ink-3)"></i>SE informado</span><span><i class="t" style="border-color:var(--ink-3)"></i>Piso</span>`
+    : `<span><i class="l" style="border-color:var(--accent)"></i>Preço justo</span><span><i style="background:var(--faixa-proj)"></i>Faixa entre cenários (mín–máx)</span>`;
+  document.getElementById("leg-g").textContent = pld ? "PLD implícito = SE informado + descolamento. Piso do ano do deck." : "Média ponderada dos cenários climáticos; faixa = cenário mais e menos descolado em cada mês.";
+  if (!ms.length) { S(svg, "text", { x: w / 2, y: h / 2, "text-anchor": "middle" }, "Informe a curva do Sudeste acima"); return; }
+  const val = p => pld ? RES[p].se + RES[p][SUB] : RES[p][SUB];
+  const lo = p => (pld ? RES[p].se : 0) + RES[p][SUB + "min"], hi = p => (pld ? RES[p].se : 0) + RES[p][SUB + "max"];
+  let vals = ms.flatMap(p => [lo(p), hi(p), val(p)]); if (pld) vals = vals.concat(ms.map(p => RES[p].se), [M[0].piso]); else vals.push(0);
+  const e = eixo(Math.min(...vals), Math.max(...vals), 5);
+  const X = i => mg.l + (ms.length === 1 ? 0.5 : i / (ms.length - 1)) * (w - mg.l - mg.r), Y = v => mg.t + (h - mg.t - mg.b) * (1 - (v - e.a) / (e.b - e.a));
+  e.t.forEach(t => { S(svg, "line", { x1: mg.l, x2: w - mg.r, y1: Y(t), y2: Y(t), stroke: "var(--rule)" }); S(svg, "text", { x: mg.l - 6, y: Y(t) + 3, "text-anchor": "end" }, n(t)); });
+  S(svg, "polygon", { points: [...ms.map((p, i) => `${X(i)},${Y(hi(p))}`), ...ms.map((p, i) => `${X(i)},${Y(lo(p))}`).reverse()].join(" "), fill: "var(--faixa-proj)" });
+  if (pld) {
+    S(svg, "line", { x1: mg.l, x2: w - mg.r, y1: Y(M[0].piso), y2: Y(M[0].piso), stroke: "var(--ink-3)", "stroke-dasharray": "4 3" });
+    S(svg, "polyline", { points: ms.map((p, i) => `${X(i)},${Y(RES[p].se)}`).join(" "), fill: "none", stroke: "var(--ink-3)", "stroke-width": 1.4 });
+  } else S(svg, "line", { x1: mg.l, x2: w - mg.r, y1: Y(0), y2: Y(0), stroke: "var(--ink-3)" });
+  S(svg, "polyline", { points: ms.map((p, i) => `${X(i)},${Y(val(p))}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": 2.2 });
+  ms.forEach((p, i) => {
+    if (rotuloDeMes(p) || (i === 0 && !ms.slice(1, 3).some(rotuloDeMes))) S(svg, "text", { x: X(i), y: h - 8, "text-anchor": "middle" }, rot(p));
+    const r = RES[p], dx = (w - mg.l - mg.r) / Math.max(ms.length - 1, 1);
+    const alvo = S(svg, "rect", { x: X(i) - dx / 2, y: mg.t, width: dx, height: h - mg.t - mg.b, fill: "transparent" });
+    dicaEm(alvo, () => {
+      // mês a mês: o porquê do ponto (física do NE), o mesmo mês realizado e os anos que formam a faixa
+      const fm = M[IDX[p]].fund, re = M[IDX[p]].real, base = pld ? r.se : 0, fmt = v => pld ? n(v, 1) : dn(v);
+      const ext = [...r.cen].sort((a, b) => a[SUB] - b[SUB]), ano = c => c.id.split("|")[0];
+      let h = `<b>${rot(p)}</b> · SE ${n(r.se, 1)}<br>${pld ? "PLD " : ""}${SUB} ${fmt(base + r[SUB])} · faixa ${fmt(base + r[SUB + "min"])} a ${fmt(base + r[SUB + "max"])}`;
+      // 1º semestre: trava o tronco N/NE→SE (sobra N+NE); 2º semestre: trava o limite de exportação do NE
+      h += +p.slice(5, 7) <= 6
+        ? `<br>Por quê (NE): trava ${pct(r.trava)} das horas · k ${n(fm.k, 2)}<br>sobra NE ${dn(fm.sobra)} GW · hidráulica N ${n(fm.hidr_N, 1)} GW`
+        : `<br>Por quê (NE): trava ${pct(r.trava)} das horas · k ${n(fm.k, 2)}<br>folga até o limite ${n(fm.folga, 1)} GW`;
+      if (re && re.se != null && re["d_" + SUB] != null)
+        h += `<br>Realizado ${rot(re.mes)}: SE ${n(re.se, 1)} · ${pld ? "PLD " + SUB + " " + n(re.se + re["d_" + SUB], 1) : SUB + " " + dn(re["d_" + SUB])}`;
+      if (ext.length > 1) h += `<br>Extremos: mais descolado ${ano(ext[0])} · menos ${ano(ext.at(-1))}`;
+      return h;
+    });
+  });
+}
+function tabela() {
+  const L = produtos(PROD).map(p => ({ ...p, g: agregar(RES, p.meses) }));
+  const fx = (g, s) => g && g[s + "min"] != null ? `<span class="fx">${dn(g[s + "min"])} a ${dn(g[s + "max"])}</span>` : "";
+  if (!Object.keys(RES).length) { document.getElementById("tab-prod").innerHTML = `<tr><td colspan="7" class="vazio-msg">Informe a curva do Sudeste acima.</td></tr>`; return; }
+  document.getElementById("tab-prod").innerHTML = L.map(({ rot: r, g, parcial }) => g
+    ? `<tr class="${parcial ? "parcial" : ""}"><td>${r}</td><td class="n">${n(g.se, 1)}</td><td class="n"><b>${dn(g.NE)}</b>${fx(g, "NE")}</td><td class="n"><b>${dn(g.N)}</b>${fx(g, "N")}</td>` +
+      `<td class="n">${n(g.se + g.NE, 1)}</td><td class="n">${n(g.se + g.N, 1)}</td><td class="n">${pct(g.trava)}</td></tr>`
+    : `<tr><td>${r}</td><td class="n" colspan="6">informe o SE</td></tr>`).join("");
+}
+function csv() {
+  // copia a tabela no formato do Excel (separador ; e vírgula decimal)
+  const L = produtos(PROD).map(p => ({ ...p, g: agregar(RES, p.meses) })).filter(p => p.g);
+  const c = v => (v == null || !isFinite(v) ? "" : v.toFixed(2).replace(".", ","));
+  const txt = [["periodo", "SE", "NE_justo", "NE_min", "NE_max", "N_justo", "N_min", "N_max", "PLD_NE", "PLD_N", "horas_travadas_NE"].join("\t"),
+    ...L.map(({ rot: r, g }) => [r, c(g.se), c(g.NE), c(g.NEmin), c(g.NEmax), c(g.N), c(g.Nmin), c(g.Nmax), c(g.se + g.NE), c(g.se + g.N), c(g.trava)].join("\t"))].join("\n");
+  const ok = m => { const e = document.getElementById("copiado"); e.textContent = m; setTimeout(() => { e.textContent = ""; }, 4000); };
+  const plano = () => { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); ok("Tabela copiada"); } catch (e) { ok("Selecione e copie manualmente"); } t.remove(); };
+  try { navigator.clipboard.writeText(txt).then(() => ok("Tabela copiada; cole no Excel"), plano); } catch (e) { plano(); }
+}
+
+// ---------------------------------------------------------------- fundamentos e sensibilidade
+const FUND = [
+  ["renov_NE", "Renovável do NE", "GW", 1], ["carga_NE", "Carga do NE", "GW", 1], ["carga_N", "Carga do N", "GW", 1],
+  ["hidr_N", "Hidráulica do N", "GW", 1], ["sobra", "Sobra renovável do NE (renov. − carga)", "GW", 1],
+  ["lim_NE", "Limite de exportação do NE", "GW", 1], ["folga", "Folga até o limite de exportação", "GW", 1],
+  ["trava", "Horas travadas do NE (chance média)", "%", 100], ["k", "Intensidade k do NE (quando trava)", "", 1],
+];
+// sobra e folga derivadas dos insumos do mês (modelo e realizado)
+const derivar = o => o && o.renov_NE != null && o.carga_NE != null
+  ? { ...o, sobra: o.renov_NE - o.carga_NE, folga: o.lim_NE != null ? o.lim_NE - (o.renov_NE - o.carga_NE) : null } : o;
+M.forEach(m => { m.fund = derivar(m.fund); m.real = derivar(m.real); });
+function fundamentos() {
+  const box = document.getElementById("mult"); box.replaceChildren();
+  FUND.forEach(([f, tit, un, esc]) => {
+    const d = document.createElement("div"); d.className = "mini";
+    d.innerHTML = `<div class="ttl">${tit}<span>${un}</span></div>`;
+    const w = 300, h = 110, mg = { l: 30, r: 6, t: 6, b: 16 };
+    const svg = S(d, "svg", { viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": tit });
+    const ms = M.map(m => m.mes), mod = M.map(m => m.fund[f] * esc), rea = f === "k" ? M.map(() => null) : M.map(m => m.real ? m.real[f] * esc : null);
+    const vs = [...mod, ...rea].filter(v => v != null && isFinite(v)); if (!vs.length) return;
+    if (f === "sobra") vs.push(0);
+    const e = eixo(Math.min(...vs), Math.max(...vs), 3);
+    const X = i => mg.l + i / (ms.length - 1) * (w - mg.l - mg.r), Y = v => mg.t + (h - mg.t - mg.b) * (1 - (v - e.a) / (e.b - e.a));
+    e.t.forEach(t => { S(svg, "line", { x1: mg.l, x2: w - mg.r, y1: Y(t), y2: Y(t), stroke: "var(--rule)" }); S(svg, "text", { x: mg.l - 4, y: Y(t) + 3, "text-anchor": "end" }, n(t, un === "" ? 1 : 0)); });
+    S(svg, "polyline", { points: mod.map((v, i) => `${X(i)},${Y(v)}`).join(" "), fill: "none", stroke: "var(--accent)", "stroke-width": 1.8 });
+    rea.forEach((v, i) => { if (v != null) S(svg, "circle", { cx: X(i), cy: Y(v), r: 1.8, fill: "var(--ink)" }); });
+    ms.forEach((p, i) => {
+      if (/-01$/.test(p)) S(svg, "text", { x: X(i), y: h - 3, "text-anchor": "middle" }, p.slice(2, 4));
+      const alvo = S(svg, "rect", { x: X(i) - 3, y: mg.t, width: 6, height: h - mg.t - mg.b, fill: "transparent" });
+      const r = M[i].real;
+      dicaEm(alvo, `<b>${rot(p)}</b> · modelo ${n(mod[i], un === "" ? 2 : 1)} ${un}` + (r && rea[i] != null ? `<br>realizado ${rot(r.mes)}: ${n(rea[i], un === "" ? 2 : 1)} ${un}` : ""));
+    });
+    box.appendChild(d);
+  });
+}
+let PFUND = "ano";
+function fundAgregado(ms) {
+  // médias ponderadas por horas; k ponderado pelas horas em que se espera trava (como no modelo)
+  const H = horas(ms), w = p => M[IDX[p]].horas / H, mod = {}, rea = {};
+  ["renov_NE", "carga_NE", "carga_N", "lim_NE", "hidr_N", "trava"].forEach(f => {
+    mod[f] = ms.reduce((a, p) => a + M[IDX[p]].fund[f] * w(p), 0);
+    rea[f] = ms.every(p => M[IDX[p]].real && M[IDX[p]].real[f] != null) ? ms.reduce((a, p) => a + M[IDX[p]].real[f] * w(p), 0) : null;
+  });
+  const kpond = (fonte, f) => { let a = 0, b = 0; ms.forEach(p => { const x = fonte(p); if (x && x.k != null && x.trava != null) { a += x.k * x.trava * w(p); b += x.trava * w(p); } }); return b > 0 ? a / b : null; };
+  mod.k = kpond(p => M[IDX[p]].fund); rea.k = kpond(p => M[IDX[p]].real);
+  [mod, rea].forEach(o => { o.sobra = o.renov_NE != null && o.carga_NE != null ? o.renov_NE - o.carga_NE : null; o.folga = o.lim_NE != null && o.sobra != null ? o.lim_NE - o.sobra : null; });
+  const refs = [...new Set(ms.map(p => M[IDX[p]].real && M[IDX[p]].real.mes).filter(Boolean))];
+  return { mod, rea, refs };
+}
+const COLS_FUND = [["renov_NE", 1], ["carga_NE", 1], ["carga_N", 1], ["hidr_N", 1], ["sobra", 1], ["lim_NE", 1], ["folga", 1], ["trava", "%"], ["k", 2]];
+function tabelaFund() {
+  const fmt = (v, c) => v == null ? "—" : c === "%" ? pct(v) : c === 2 ? n(v, 2) : (v < -0.05 ? "−" : "") + n(Math.abs(v), 1);
+  const L = produtos(PFUND);
+  document.getElementById("tab-fund").innerHTML = L.map(({ rot: r, meses, parcial }) => {
+    const g = fundAgregado(meses);
+    const rs = [...g.refs].sort(), idx = p => +p.slice(0, 4) * 12 + +p.slice(5, 7);
+    const continuo = rs.every((p, i) => i === 0 || idx(p) - idx(rs[i - 1]) === 1);
+    const ref = !rs.length ? "" : rs.length === 1 ? rot(rs[0]) : continuo ? `${rot(rs[0])} a ${rot(rs.at(-1))}` : rs.map(rot).join(", ");
+    return `<tr class="${parcial ? "parcial" : ""}"><td>${r}${ref ? `<span class="fx">real: ${ref}</span>` : ""}</td>` +
+      COLS_FUND.map(([f, c]) => `<td class="n"><b>${fmt(g.mod[f], c)}</b><span class="fx">${fmt(g.rea[f], c)}</span></td>`).join("") + "</tr>";
+  }).join("");
+}
+function copiarFund() {
+  const c = v => (v == null || !isFinite(v) ? "" : v.toFixed(3).replace(".", ","));
+  const cab = ["periodo", ...COLS_FUND.flatMap(([f]) => [f + "_modelo", f + "_realizado"])].join("\t");
+  const txt = [cab, ...produtos(PFUND).map(({ rot: r, meses }) => { const g = fundAgregado(meses); return [r, ...COLS_FUND.flatMap(([f]) => [c(g.mod[f]), c(g.rea[f])])].join("\t"); })].join("\n");
+  const ok = m => { const e = document.getElementById("copiado-fund"); e.textContent = m; setTimeout(() => { e.textContent = ""; }, 4000); };
+  const plano = () => { const t = document.createElement("textarea"); t.value = txt; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); ok("Tabela copiada"); } catch (e) { ok("Selecione e copie manualmente"); } t.remove(); };
+  try { navigator.clipboard.writeText(txt).then(() => ok("Tabela copiada; cole no Excel"), plano); } catch (e) { plano(); }
+}
+let CHOQUE = 10, CHOQUE_UN = "rs";
+function sensibilidade(se) {
+  const aj = CHOQUE_UN === "pct" ? x => x * (1 + CHOQUE / 100) : x => x + CHOQUE;
+  const ch = calcular(se, aj);
+  if (!Object.keys(RES).length) { document.getElementById("tab-sens").innerHTML = `<tr><td colspan="9" class="vazio-msg">Informe a curva do Sudeste acima.</td></tr>`; return; }
+  const anos = produtos("ano"), sems = produtos("sem");
+  const L = anos.flatMap(a => [a, ...sems.filter(x => x.meses.every(p => a.meses.includes(p)) && x.meses.length < a.meses.length)]);
+  document.getElementById("tab-sens").innerHTML = L.map(p => {
+    const a = agregar(RES, p.meses), b = agregar(ch, p.meses);
+    return a && b ? `<tr class="${p.parcial ? "parcial" : ""}"><td>${p.meses.length === 12 || p === anos.find(x => x === p) ? `<b>${p.rot}</b>` : `&nbsp;&nbsp;${p.rot}`}</td>` +
+      `<td class="n delta"><b>${sn(b.NE - a.NE, 2).replace("-", "−")}</b></td><td class="n delta ult"><b>${sn(b.N - a.N, 2).replace("-", "−")}</b></td>` +
+      `<td class="n">${n(a.se, 1)}</td><td class="n">${n(b.se, 1)}</td><td class="n">${dn(a.NE)}</td><td class="n">${dn(b.NE)}</td><td class="n">${dn(a.N)}</td><td class="n">${dn(b.N)}</td></tr>`
+      : "";
+  }).join("");
+}
+
+// ---------------------------------------------------------------- orquestração
+function atualizar() {
+  const r = resolver(); pintarCurva(r);
+  RES = calcular(r.se);
+  resumo(); grafico(); tabela(); sensibilidade(r.se);
+}
+function abas(id, cb) {
+  document.getElementById(id).addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return;
+    document.querySelectorAll(`#${id} button`).forEach(x => x.setAttribute("aria-pressed", String(x === b))); cb(b.dataset.v); });
+}
+abas("abas-sub", v => { SUB = v; resumo(); grafico(); });
+abas("abas-modo", v => { MODO = v; resumo(); grafico(); });
+abas("abas-prod", v => { PROD = v; tabela(); });
+document.getElementById("btn-csv").addEventListener("click", csv);
+document.getElementById("btn-fund").addEventListener("click", copiarFund);
+const atalhosChoque = () => document.querySelectorAll("#atalhos-choque button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.v === CHOQUE && CHOQUE_UN === "rs")));
+document.getElementById("choque").addEventListener("input", e => { const v = parseNum(e.target.value); if (v == null) return; CHOQUE = v; atalhosChoque(); sensibilidade(resolver().se); });
+document.getElementById("atalhos-choque").addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return;
+  CHOQUE = +b.dataset.v; CHOQUE_UN = "rs"; document.getElementById("choque").value = n(CHOQUE); document.querySelector('input[name="choque-un"][value="rs"]').checked = true;
+  atalhosChoque(); sensibilidade(resolver().se); });
+document.querySelectorAll('input[name="choque-un"]').forEach(i => i.addEventListener("change", () => { CHOQUE_UN = i.value; atalhosChoque(); sensibilidade(resolver().se); }));
+abas("abas-fund", v => { PFUND = v; tabelaFund(); });
+document.getElementById("btn-todos").addEventListener("click", () => {
+  const v = parseNum(document.getElementById("valor-todos").value); if (v == null) return;
+  ENT = {}; ANOS.forEach(y => { ENT[`A${y}`] = v; }); salvar(); atualizar();
+});
+document.getElementById("btn-limpar").addEventListener("click", () => { ENT = {}; salvar(); atualizar(); });
+document.querySelectorAll('input[name="saz"]').forEach(i => { i.checked = i.value === SAZMODO; i.addEventListener("change", () => { SAZMODO = i.value; salvar(); atualizar(); }); });
+
+const meta = DADOS.meta;
+document.getElementById("rot-horiz").textContent = `Horizonte: ${rotLongo(meta.horizonte[0])} a ${rotLongo(meta.horizonte[1])}`;
+document.getElementById("meta").innerHTML = `<span>Premissas:</span><span>Deck NEWAVE ${rot(meta.deck)}</span><span>Modelo ${meta.versao}</span>` +
+  `<span>Dados horários até ${dataBr(meta.dados_ate)}</span><span>${M[0].cen.length} cenários climáticos</span><span class="atualizado">Rodada de ${dataHoraBr(meta.rodada)}</span>`;
+// mantém o tooltip dentro da tela (os tooltips por ano climático são mais altos)
+document.addEventListener("pointermove", e => {
+  const d = document.getElementById("dica"); if (d.hidden) return;
+  const r = d.getBoundingClientRect(), dx = e.clientX + 12 + r.width > innerWidth - 8, dy = e.clientY + 12 + r.height > innerHeight - 8;
+  d.style.transform = `translate(${dx ? `calc(-100% - 12px)` : "12px"}, ${dy ? `calc(-100% - 12px)` : "12px"})`;
+});
+desenharCurva(); fundamentos(); tabelaFund(); atualizar();
+</script>
+</body>
+</html>
