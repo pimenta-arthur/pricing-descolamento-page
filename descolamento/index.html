@@ -210,7 +210,7 @@
           </div>
           <div class="rolagem"><table>
             <thead><tr><th>Período</th><th class="n">Renov. NE</th><th class="n">Carga NE</th><th class="n">Carga N</th>
-              <th class="n">Hidr. N</th><th class="n">Sobra NE</th><th class="n">Lim. exp. NE</th>
+              <th class="n">Hidr. N</th><th class="n">Hidr. NE</th><th class="n">Sobra NE</th><th class="n">Lim. exp. NE</th>
               <th class="n">Folga lim.</th><th class="n">Trava NE</th><th class="n">k NE</th></tr></thead>
             <tbody id="tab-fund"></tbody>
           </table></div>
@@ -571,7 +571,7 @@ let PFUND = "ano";
 function fundAgregado(ms) {
   // médias ponderadas por horas; k ponderado pelas horas em que se espera trava (como no modelo)
   const H = horas(ms), w = p => M[IDX[p]].horas / H, mod = {}, rea = {};
-  ["renov_NE", "carga_NE", "carga_N", "lim_NE", "hidr_N", "trava"].forEach(f => {
+  ["renov_NE", "carga_NE", "carga_N", "lim_NE", "hidr_N", "hidr_NE", "trava"].forEach(f => {
     mod[f] = ms.reduce((a, p) => a + M[IDX[p]].fund[f] * w(p), 0);
     rea[f] = ms.every(p => M[IDX[p]].real && M[IDX[p]].real[f] != null) ? ms.reduce((a, p) => a + M[IDX[p]].real[f] * w(p), 0) : null;
   });
@@ -581,7 +581,7 @@ function fundAgregado(ms) {
   const refs = [...new Set(ms.map(p => M[IDX[p]].real && M[IDX[p]].real.mes).filter(Boolean))];
   return { mod, rea, refs };
 }
-const COLS_FUND = [["renov_NE", 1], ["carga_NE", 1], ["carga_N", 1], ["hidr_N", 1], ["sobra", 1], ["lim_NE", 1], ["folga", 1], ["trava", "%"], ["k", 2]];
+const COLS_FUND = [["renov_NE", 1], ["carga_NE", 1], ["carga_N", 1], ["hidr_N", 1], ["hidr_NE", 1], ["sobra", 1], ["lim_NE", 1], ["folga", 1], ["trava", "%"], ["k", 2]];
 function tabelaFund() {
   const fmt = (v, c) => v == null ? "—" : c === "%" ? pct(v) : c === 2 ? n(v, 2) : (v < -0.05 ? "−" : "") + n(Math.abs(v), 1);
   const L = produtos(PFUND);
