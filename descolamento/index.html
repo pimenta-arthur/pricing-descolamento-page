@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Descolamento NE e N</title>
-<!-- Padrão visual Quant Energia · v1 · 2026-10 · página de precificação do descolamento (NE e N × SE).
+<!-- Padrão visual Quant Energia · v1.3.1 · 2026-10 · página de precificação do descolamento (NE e N × SE).
      Dados: dados.js, gerado por `uv run python -m pricing_descolamento_analytics.web`. O navegador recalcula o
      modelo exato para a curva de SE digitada: d = −Σ_h c_h · máx(SE · perfil_h − piso, 0), por mês e cenário. -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,7 +57,7 @@
   #det-hist > summary { font: 400 0.9rem var(--f-body); color: var(--accent); }
   #det-hist[open] > summary { margin-bottom: 6px; }
   .hist-in { display: grid; gap: 8px; }
-  .marca { font-size: 0.7rem; color: var(--ink-3); }
+  .marca-cel { font-size: 0.7rem; color: var(--ink-3); }
   .dica { max-width: 480px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
   td.vazio-msg { text-align: center !important; color: var(--ink-3); padding-block: 18px; font-size: 0.9rem; }
   /* deltas do choque em destaque (fundo), antes das colunas de referência */
@@ -70,8 +70,8 @@
   <nav class="nav" aria-label="Páginas">
     <a class="marca" href="/">Quant Energia</a>
     <a href="./index.html" aria-current="page">Descolamento NE e N</a>
-    <a href="metodologia.html">Metodologia</a>
     <a href="fundamentos.html">Fundamentos</a>
+    <a href="metodologia.html">Metodologia</a>
   </nav>
 
   <section class="hero" aria-labelledby="titulo">
@@ -254,7 +254,7 @@
     <span>Modelo estrutural horário condicionado à curva do SE informada; o SE nunca vem do NEWAVE. A faixa representa a
       variabilidade climática (anos históricos), não um intervalo de confiança completo: não inclui o risco de regime
       do 1º semestre (trava rasa × funda) nem o erro dos insumos do deck. O mês corrente não é precificado nesta versão.
-      Limitações e testes em <a href="metodologia.html">Metodologia</a> (seção 33).</span>
+      Limitações e testes em <a href="metodologia.html">Metodologia</a>.</span>
   </div>
 </main>
 <div class="dica" id="dica" hidden></div>
@@ -683,7 +683,7 @@ function historicoReal() {
     let marca = "";
     if (compar) {
       const vals = comparaveis(ms).map(c => SUB === "NE" ? c.g.d_NE : c.g.d_N), med = vals.reduce((a, b) => a + b, 0) / vals.length;
-      if (Math.abs(v - med) > Math.max(2, 0.5 * Math.abs(med))) marca = v < med ? ' <span class="marca" title="mais descolado que a média">▲</span>' : ' <span class="marca" title="menos descolado que a média">▼</span>';
+      if (Math.abs(v - med) > Math.max(2, 0.5 * Math.abs(med))) marca = v < med ? ' <span class="marca-cel" title="mais descolado que a média">▲</span>' : ' <span class="marca-cel" title="menos descolado que a média">▼</span>';
     }
     return `<td class="${cls}"><div class="cel" data-hist="${ms.join(",")}" data-rot="${rot_}"><b>${pld ? n(g.SE + v, 1) : dn(v)}</b>${marca}<span class="fx">SE ${n(g.SE)}</span></div></td>`;
   };
