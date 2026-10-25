@@ -307,6 +307,7 @@
             <div class="abas" id="abas-h-sub" role="group" aria-label="Submercado do histórico">
               <button type="button" data-v="NE" aria-pressed="true">NE</button>
               <button type="button" data-v="N">N</button>
+              <button type="button" data-v="S">S</button>
             </div>
             <div class="abas" id="abas-h-modo" role="group" aria-label="Medida do histórico">
               <button type="button" data-v="d" aria-pressed="true">Descolamento</button>
@@ -316,7 +317,7 @@
         </div>
         <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
         <div class="rolagem"><table class="curva leitura" id="hist-meses"></table></div>
-        <p class="leg">Realizado desde 2021 (PLD da CCEE; física do DESSEM): períodos agregados em cima e meses embaixo, com o SE médio de cada período em cinza. Quanto mais forte o fundo, mais descolado o período (escala: percentil 90 dos meses). Passe o mouse para ver o período contra a média dos mesmos meses nos outros anos. Nos meses, o contorno cinza destaca o <b>ano de referência</b> da venda ancorada: o ano em que aquele mês do calendário consumiu a menor fração da folga (SE − piso), que sustenta a venda pelo histórico. * Ano parcial.</p>
+        <p class="leg">Realizado desde 2021 (PLD da CCEE; física do DESSEM): períodos agregados em cima e meses embaixo, com o SE médio de cada período em cinza. Quanto mais forte o fundo, mais descolado o período (escala: percentil 90 dos meses). Passe o mouse para ver o período contra a média dos mesmos meses nos outros anos. Nos meses, o contorno cinza destaca o <b>ano de referência</b> da venda ancorada: o ano em que aquele mês do calendário consumiu a menor fração da folga (SE − piso), que sustenta a venda pelo histórico (só NE e N). O Sul aparece como referência: ainda não tem cotação de compra e venda, e, quando descola, quase sempre fica acima do SE (descolamento positivo). * Ano parcial.</p>
       </div>
     </details>
   </section>
@@ -1002,7 +1003,7 @@ const ANOS_HIST = [...new Set(HM.map(m => +m.mes.slice(0, 4)))].sort();
 const mesesDe = (y, mm) => mm.map(k => `${y}-${String(k).padStart(2, "0")}`).filter(p => IDXH[p] != null);
 function agrH(ms) {
   const H = ms.reduce((a, p) => a + HM[IDXH[p]].horas, 0), w = p => HM[IDXH[p]].horas / H, o = {};
-  ["SE", "piso", "d_NE", "d_N", "trava", "renov_NE", "carga_NE", "carga_N", "hidr_N", "sobra_NNE", "exp_NE", "lim_NE"].forEach(f => {
+  ["SE", "piso", "d_NE", "d_N", "d_S", "trava", "renov_NE", "carga_NE", "carga_N", "hidr_N", "sobra_NNE", "exp_NE", "lim_NE"].forEach(f => {
     o[f] = ms.reduce((a, p) => a + HM[IDXH[p]][f] * w(p), 0); });
   const ks = ms.reduce((a, p) => a + HM[IDXH[p]].k_soma, 0), kh = ms.reduce((a, p) => a + HM[IDXH[p]].k_horas, 0);
   o.k = kh >= 20 ? ks / kh : null;
@@ -1018,7 +1019,7 @@ function comparaveis(ms) {
   return ANOS_HIST.map(y => ({ y, ms: mesesDe(y, mm) })).filter(x => x.ms.length === mm.length).map(x => ({ y: x.y, g: agrH(x.ms) }));
 }
 const LINHAS_HIST = [
-  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
+  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"], ["S (R$/MWh)", g => g.d_S, "rs", "mais"],
   ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"], ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"],
   ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"], ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"],
   ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
@@ -1052,7 +1053,7 @@ function dicaHist(rotulo, ms) {
 }
 function historicoRealizado() {
   const t1 = document.getElementById("hist-real"), t2 = document.getElementById("hist-meses"); if (!t1 || !HM.length) return;
-  const pld = HMODO === "pld", SUB = HSUB, dsub = g => (SUB === "NE" ? g.d_NE : g.d_N);
+  const pld = HMODO === "pld", SUB = HSUB, dsub = g => g["d_" + SUB];
   document.getElementById("tt-hist").textContent = `${pld ? "PLD implícito" : "Descolamento"} realizado do ${SUB}, R$/MWh`;
   // sombreado: uma cor, mais forte quanto mais descolado (escala = percentil 90 do descolamento mensal)
   const vm = HM.map(m => Math.abs(dsub(m))).filter(v => v > 0).sort((a, b) => a - b), esc = vm.length ? vm[Math.floor(0.9 * (vm.length - 1))] : 1;
