@@ -317,7 +317,7 @@
         </div>
         <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
         <div class="rolagem"><table class="curva leitura" id="hist-meses"></table></div>
-        <p class="leg">Realizado desde 2021 (PLD da CCEE; física do DESSEM): períodos agregados em cima e meses embaixo, com o SE médio de cada período em cinza. Quanto mais forte o fundo, mais descolado o período (escala: percentil 90 dos meses). Passe o mouse para ver o período contra a média dos mesmos meses nos outros anos. Nos meses, o contorno cinza destaca o <b>ano de referência</b> da venda ancorada: o ano em que aquele mês do calendário consumiu a menor fração da folga (SE − piso), que sustenta a venda pelo histórico (só NE e N). O Sul aparece como referência: ainda não tem cotação de compra e venda, e, quando descola, quase sempre fica acima do SE (descolamento positivo). * Ano parcial.</p>
+        <p class="leg">Realizado desde 2021 (PLD da CCEE; física do DESSEM): períodos agregados em cima e meses embaixo, com o SE médio de cada período em cinza. Quanto mais forte o fundo, mais descolado o período (escala: percentil 90 dos meses). Passe o mouse (NE e N) para ver o período contra a média dos mesmos meses nos outros anos. Nos meses, o contorno cinza destaca o <b>ano de referência</b> da venda ancorada: o ano em que aquele mês do calendário consumiu a menor fração da folga (SE − piso), que sustenta a venda pelo histórico (só NE e N). O Sul aparece como referência: ainda não tem cotação de compra e venda, e, quando descola, quase sempre fica acima do SE (descolamento positivo). * Ano parcial.</p>
       </div>
     </details>
   </section>
@@ -1019,7 +1019,7 @@ function comparaveis(ms) {
   return ANOS_HIST.map(y => ({ y, ms: mesesDe(y, mm) })).filter(x => x.ms.length === mm.length).map(x => ({ y: x.y, g: agrH(x.ms) }));
 }
 const LINHAS_HIST = [
-  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"], ["S (R$/MWh)", g => g.d_S, "rs", "mais"],
+  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
   ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"], ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"],
   ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"], ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"],
   ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
@@ -1075,6 +1075,7 @@ function historicoRealizado() {
     h2 += `<tr><td><b>${rotA}</b></td>` + MESES_ABR.map((mm, i) => { const p = `${y}-${String(i + 1).padStart(2, "0")}`; return IDXH[p] != null ? cel([p], rot(p), true, gq(i)) : `<td class="${gq(i)}"><div class="cel vazio">—</div></td>`; }).join("") + "</tr>";
   });
   t1.innerHTML = h1 + "</tbody>"; t2.innerHTML = h2 + "</tbody>";
+  if (SUB === "S") return;   // Sul sem tooltip: ainda sem metodologia, e as variáveis do tooltip são do NE e do N
   document.querySelectorAll("#hist-real .cel[data-hist], #hist-meses .cel[data-hist]").forEach(c => dicaEm(c, () => dicaHist(c.dataset.rot, c.dataset.hist.split(",")) + (c.dataset.ref ? `<div style="margin-top:4px">◆ Ano de referência da venda ancorada neste mês do calendário (menor fração da folga já realizada).</div>` : "")));
 }
 function atualizar() {
