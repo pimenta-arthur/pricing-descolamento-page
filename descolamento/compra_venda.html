@@ -51,9 +51,11 @@
   .curva.leitura .cmp-par { display: flex; justify-content: center; align-items: center; gap: 2px; }
   .curva.leitura .cmp-par .barra { color: var(--ink-3); }
   .curva.leitura button.cel.cmp { width: auto; min-width: 0; padding: 4px 3px; }
-  .curva.leitura td .fx { text-align: center; }
+  #tab-compacta td .fx { text-align: center; }
+  #hist-real .cel .fx, #hist-meses .cel .fx { text-align: right; }
   #tab-cot { table-layout: fixed; }  /* colunas na mesma posição em mês, trimestre, semestre e ano */
   .curva .gp { border-left: 1px solid var(--rule); }
+  #det-conf { border-top: 0; padding-top: 0; }  /* a linha da última linha da tabela já separa; uma só */
   #det-conf > summary { font-size: 0.8rem; color: var(--ink-3); }
   .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--ink-2); cursor: pointer; }
   .toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
@@ -62,6 +64,7 @@
   .toggle input:checked + .trilho { background: var(--accent); }
   .toggle input:checked + .trilho::after { transform: translateX(14px); background: var(--surface); }
   .toggle input:focus-visible + .trilho { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .curva.leitura .cel.ref-venda { outline: 1px solid var(--rule); outline-offset: -1px; }
   /* resultado */
   .tile .v.neg { color: var(--ink); }
   .tile .f { font: 400 0.78rem var(--f-data); color: var(--ink-3); }
@@ -71,10 +74,6 @@
   details.fund[open] > summary { margin-bottom: 10px; }
   /* o choque fica dentro da seção de resultado (espaço de 10px); a margem iguala ao espaço entre seções (34px), como nos fundamentos */
   #det-choque { margin-block: 24px; }
-  #det-hist { margin-top: 4px; }
-  /* botão do histórico com cara de link, na cor de destaque, sem negrito */
-  #det-hist > summary { font: 400 0.9rem var(--f-body); color: var(--accent); }
-  #det-hist[open] > summary { margin-bottom: 6px; }
   .hist-in { display: grid; gap: 8px; }
   .marca-cel { font-size: 0.7rem; color: var(--ink-3); }
   .dica { max-width: 480px; white-space: normal; }  /* base.css define nowrap; aqui o tooltip tem várias linhas */
@@ -297,8 +296,33 @@
     </details>
   </section>
 
-  <!-- 3c. swap -->
-  <section aria-labelledby="s-swap">
+  <!-- 3d2. descolamento realizado -->
+  <section aria-labelledby="s-hist">
+    <details class="fund" id="det-hist">
+      <summary id="s-hist">Descolamento realizado (histórico)</summary>
+      <div class="bloco">
+        <div class="barra-abas">
+          <div class="ttl" id="tt-hist">Descolamento realizado do NE, R$/MWh</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <div class="abas" id="abas-h-sub" role="group" aria-label="Submercado do histórico">
+              <button type="button" data-v="NE" aria-pressed="true">NE</button>
+              <button type="button" data-v="N">N</button>
+            </div>
+            <div class="abas" id="abas-h-modo" role="group" aria-label="Medida do histórico">
+              <button type="button" data-v="d" aria-pressed="true">Descolamento</button>
+              <button type="button" data-v="pld">PLD implícito</button>
+            </div>
+          </div>
+        </div>
+        <div class="rolagem"><table class="curva leitura" id="hist-real"></table></div>
+        <div class="rolagem"><table class="curva leitura" id="hist-meses"></table></div>
+        <p class="leg">Realizado desde 2021 (PLD da CCEE; física do DESSEM): períodos agregados em cima e meses embaixo, com o SE médio de cada período em cinza. Quanto mais forte o fundo, mais descolado o período (escala: percentil 90 dos meses). Passe o mouse para ver o período contra a média dos mesmos meses nos outros anos. Nos meses, o contorno cinza destaca o <b>ano de referência</b> da venda ancorada: o ano em que aquele mês do calendário consumiu a menor fração da folga (SE − piso), que sustenta a venda pelo histórico. * Ano parcial.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- 3c. swap: fora da página por enquanto (embrionário); o código segue ativo. Para reativar, tire o atributo hidden da seção e o card "Swap" de Próximos passos. -->
+  <section aria-labelledby="s-swap" hidden>
     <details class="fund" id="det-swap">
       <summary id="s-swap">Swap</summary>
     <div class="bloco">
@@ -357,6 +381,10 @@
       <div class="bloco">
         <div class="ttl">Cálculo do mês corrente</div>
         <p class="leg">Precificar o mês corrente com informação do próprio mês (revisões do DECOMP/DESSEM, realizado parcial).</p>
+      </div>
+      <div class="bloco">
+        <div class="ttl">Swap</div>
+        <p class="leg">SE × NE e SE × N já têm o cálculo (cotação do descolamento deslocada pela diferença de SE, com curva e volume por perna); NE × N segue em teste. Ainda embrionário: voltar ao tema para fechar a estrutura do NE × N e validar o swap temporal.</p>
       </div>
     </div>
   </section>
@@ -765,15 +793,23 @@ function gradeCompacta_() {
     if (aberto) { const ms = a.meses.map(pp => linhaProduto(k, rot(pp), [pp], 3, CREF)).filter(Boolean);
       const lados = ["se", "compra", "venda", ...(COMPACTA_JUSTO ? ["justo"] : [])], NM = { se: "SE", compra: "compra", venda: "venda", justo: "justo" };
       h += `<tr class="meses-row"><td colspan="9"><table class="det" style="margin:0 auto"><thead><tr><th></th>${ms.map(r => `<th class="n">${r.rot}</th>`).join("")}</tr></thead><tbody>` +
-        lados.map(lado => `<tr><td class="leg">${NM[lado]}</td>${ms.map(r => `<td class="n">${lado === "se" ? n(r.se, 0) : f(r[lado], r.se)}</td>`).join("")}</tr>`).join("") + `</tbody></table></td></tr>`; }
-    if (COMPACTA_DET && COMPACTA_DET.y === a.y) { const r = cols[COMPACTA_DET.col];
+        lados.map(lado => `<tr><td class="leg">${NM[lado]}</td>${ms.map(r => {
+          if (lado === "se") return `<td class="n">${n(r.se, 0)}</td>`;
+          if (lado === "justo") return `<td class="n">${f(r[lado], r.se)}</td>`;
+          const at = COMPACTA_DET && COMPACTA_DET.y === a.y && COMPACTA_DET.mes === r.ms[0] && COMPACTA_DET.lado === lado;
+          return `<td class="n"><button type="button" class="cel clic cmp${at ? " ativo" : ""}" data-y="${a.y}" data-mes="${r.ms[0]}" data-lado="${lado}" aria-label="Detalhar ${lado} de ${r.rot}">${f(r[lado], r.se)}</button></td>`; }).join("")}</tr>`).join("") + `</tbody></table></td></tr>`;
+      if (COMPACTA_DET && COMPACTA_DET.y === a.y && COMPACTA_DET.mes) { const r = ms.find(x => x.ms[0] === COMPACTA_DET.mes);
+        if (r) h += `<tr class="meses-row"><td></td><td colspan="8" style="text-align:left">${descritivoProduto(r, COMPACTA_DET.lado)}</td></tr>`; } }
+    if (COMPACTA_DET && COMPACTA_DET.y === a.y && COMPACTA_DET.col != null) { const r = cols[COMPACTA_DET.col];
       if (r) h += `<tr class="meses-row"><td></td><td colspan="8" style="text-align:left">${descritivoProduto(r, COMPACTA_DET.lado)}</td></tr>`; }
   });
   document.getElementById("compacta-conf").innerHTML = confs.filter(Boolean).map(x => `<div>${x}</div>`).join("");
   tab.innerHTML = h + "</tbody>";
   tab.querySelectorAll(".exp").forEach(b => b.addEventListener("click", () => { const y = +b.dataset.a; COMPACTA_ABERTOS.has(y) ? COMPACTA_ABERTOS.delete(y) : COMPACTA_ABERTOS.add(y); gradeCompacta(); }));
-  tab.querySelectorAll(".clic").forEach(b => b.addEventListener("click", () => { const d = { y: +b.dataset.y, col: +b.dataset.col, lado: b.dataset.lado };
-    COMPACTA_DET = COMPACTA_DET && COMPACTA_DET.y === d.y && COMPACTA_DET.col === d.col && COMPACTA_DET.lado === d.lado ? null : d; gradeCompacta(); }));
+  tab.querySelectorAll(".clic").forEach(b => b.addEventListener("click", () => {
+    const d = b.dataset.mes ? { y: +b.dataset.y, mes: b.dataset.mes, lado: b.dataset.lado } : { y: +b.dataset.y, col: +b.dataset.col, lado: b.dataset.lado };
+    const igual = COMPACTA_DET && COMPACTA_DET.y === d.y && COMPACTA_DET.col === d.col && COMPACTA_DET.mes === d.mes && COMPACTA_DET.lado === d.lado;
+    COMPACTA_DET = igual ? null : d; gradeCompacta(); }));
 }
 // ---------------------------------------------------------------- swap
 // spread = PLD(perna que recebe) − k · PLD(perna que paga), k = (volume · horas pagos) ÷ (volume · horas recebidos).
@@ -953,6 +989,92 @@ function copiarFund() {
     try { document.execCommand("copy"); ok("Tabela copiada"); } catch (e) { ok("Selecione e copie manualmente"); } t.remove(); };
   try { navigator.clipboard.writeText(txt).then(() => ok("Tabela copiada; cole no Excel"), plano); } catch (e) { plano(); }
 }
+// ---------------------------------------------------------------- descolamento realizado (histórico), da página principal
+// ano de referência da venda ancorada: o ano do mês do calendário com a menor fração da folga já realizada (até D−2; mesma regra da página)
+function anoRefVenda(mes, sub) {
+  const arr = (CVH[sub] || {})[String(+mes.slice(5, 7))]; if (!arr || !arr.length) return null;
+  return arr.reduce((a, x) => (x[1] > a[1] ? x : a))[0];
+}
+let HSUB = "NE", HMODO = "d";
+const HM = DADOS.historico || [], IDXH = Object.fromEntries(HM.map((m, i) => [m.mes, i]));
+const ANOS_HIST = [...new Set(HM.map(m => +m.mes.slice(0, 4)))].sort();
+const mesesDe = (y, mm) => mm.map(k => `${y}-${String(k).padStart(2, "0")}`).filter(p => IDXH[p] != null);
+function agrH(ms) {
+  const H = ms.reduce((a, p) => a + HM[IDXH[p]].horas, 0), w = p => HM[IDXH[p]].horas / H, o = {};
+  ["SE", "piso", "d_NE", "d_N", "trava", "renov_NE", "carga_NE", "carga_N", "hidr_N", "sobra_NNE", "exp_NE", "lim_NE"].forEach(f => {
+    o[f] = ms.reduce((a, p) => a + HM[IDXH[p]][f] * w(p), 0); });
+  const ks = ms.reduce((a, p) => a + HM[IDXH[p]].k_soma, 0), kh = ms.reduce((a, p) => a + HM[IDXH[p]].k_horas, 0);
+  o.k = kh >= 20 ? ks / kh : null;
+  const folga = o.SE - o.piso;
+  o.fracao = folga >= 20 ? Math.min(Math.max(-o.d_NE / folga, 0), 1) : null;
+  o.uso = o.lim_NE > 0 ? o.exp_NE / o.lim_NE : null;
+  o.cob = Math.min(...ms.map(p => HM[IDXH[p]].cobertura_dessem ?? 1));
+  return o;
+}
+// mesmos meses do calendário em cada ano com todos eles disponíveis (comparável ao período)
+function comparaveis(ms) {
+  const mm = ms.map(p => +p.slice(5, 7));
+  return ANOS_HIST.map(y => ({ y, ms: mesesDe(y, mm) })).filter(x => x.ms.length === mm.length).map(x => ({ y: x.y, g: agrH(x.ms) }));
+}
+const LINHAS_HIST = [
+  ["NE (R$/MWh)", g => g.d_NE, "rs", "desc"], ["N (R$/MWh)", g => g.d_N, "rs", "desc"],
+  ["Renovável NE (GW)", g => g.renov_NE, "gw", "mais"], ["Carga NE (GW)", g => g.carga_NE, "gw", "mais"], ["Carga N (GW)", g => g.carga_N, "gw", "mais"],
+  ["Hidráulica N (GW)", g => g.hidr_N, "gw", "mais"], ["Sobra N+NE (GW)", g => g.sobra_NNE, "gw", "mais"], ["Exportação NE (GW)", g => g.exp_NE, "gw", "mais"],
+  ["Uso do limite de exp. NE", g => g.uso, "pct", "mais"],
+  "—",
+  ["NE (% da folga)", g => g.fracao, "pct", "mais"], ["Horas travadas NE", g => g.trava, "pct", "mais"], ["k NE", g => g.k, "k", "mais"],
+];
+function dicaHist(rotulo, ms) {
+  const g = agrH(ms), cmp = comparaveis(ms), anos = cmp.map(c => c.y);
+  const fmt = (v, t) => v == null ? "—" : t === "rs" ? dn(v) : t === "pct" ? pct(v) : t === "k" ? n(v, 2) : n(v, 1);
+  const td = (x, al = "right") => `<td style="padding:1px 0 1px 10px;border:0;text-align:${al};font-family:var(--f-data)">${x}</td>`;
+  const rotMed = `média ${rotulo.replace(/\/\d\d$/, "").replace(/ \d{4}$/, "")} ${anos[0]}–${String(anos.at(-1)).slice(2)}`;
+  let h = `<b>${rotulo}</b> · SE ${n(g.SE, 1)}<table style="border-collapse:collapse;margin-top:4px;font:inherit;color:inherit;background:none">` +
+    `<tr><td style="border:0"></td>${["valor", rotMed, "posição"].map(x => td(`<span style="opacity:.7">${x}</span>`)).join("")}</tr>`;
+  LINHAS_HIST.forEach(linha => {
+    if (linha === "—") { h += `<tr><td colspan="4" style="border:0;padding:3px 0"><div style="border-top:1px solid color-mix(in srgb, var(--bg) 35%, transparent)"></div></td></tr>`; return; }
+    const [nome, f, t, ordem] = linha;
+    const v = f(g), vals = cmp.map(c => f(c.g)).filter(x => x != null);
+    if (v == null && !vals.length) return;
+    const med = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    let d = "—";
+    if (v != null && med != null) {
+      if (t === "pct") d = sn((v - med) * 100, 0) + " p.p.";
+      else if (Math.abs(med) > 0.05) d = sn((v / med - 1) * 100, 0) + "%";
+    }
+    const ord = [...vals].sort((a, b) => ordem === "desc" ? a - b : b - a), pos = v == null ? "—" : `${ord.indexOf(v) + 1}º/${vals.length}`;
+    h += `<tr><td style="padding:1px 0;border:0">${nome}</td>${td(fmt(v, t))}${td(`${fmt(med, t)}${d !== "—" ? ` (${d})` : ""}`)}${td(pos)}</tr>`;
+  });
+  h += `</table><div style="opacity:.7;margin-top:4px">Posição: 1º = mais descolado ou maior valor. % da folga = descolamento ÷ (SE − piso), só anos com SE acima do piso.` +
+    (g.cob < 0.95 ? ` Física com ${pct(g.cob)} das horas do DESSEM no mês com menos dados.` : "") + `</div>`;
+  return h;
+}
+function historicoRealizado() {
+  const t1 = document.getElementById("hist-real"), t2 = document.getElementById("hist-meses"); if (!t1 || !HM.length) return;
+  const pld = HMODO === "pld", SUB = HSUB, dsub = g => (SUB === "NE" ? g.d_NE : g.d_N);
+  document.getElementById("tt-hist").textContent = `${pld ? "PLD implícito" : "Descolamento"} realizado do ${SUB}, R$/MWh`;
+  // sombreado: uma cor, mais forte quanto mais descolado (escala = percentil 90 do descolamento mensal)
+  const vm = HM.map(m => Math.abs(dsub(m))).filter(v => v > 0).sort((a, b) => a - b), esc = vm.length ? vm[Math.floor(0.9 * (vm.length - 1))] : 1;
+  const sombra = v => `background:color-mix(in srgb, var(--accent) ${Math.round(Math.min(1, Math.abs(v) / esc) * 42)}%, transparent)`;
+  const cel = (ms, rot_, comSE, tdc = "") => {
+    if (!ms.length) return `<td class="${tdc}"><div class="cel vazio">—</div></td>`;
+    const g = agrH(ms), v = dsub(g), eref = ms.length === 1 && anoRefVenda(ms[0], SUB) === +ms[0].slice(0, 4);   // ano que sustenta a venda ancorada deste mês do calendário
+    return `<td class="${tdc}"><div class="cel${eref ? " ref-venda" : ""}" style="${sombra(v)}" data-hist="${ms.join(",")}" data-rot="${rot_}"${eref ? ' data-ref="1"' : ""}><b>${pld ? n(g.SE + v, 1) : dn(v)}</b>${comSE ? `<span class="fx">SE ${n(g.SE)}</span>` : ""}</div></td>`;
+  };
+  let h1 = `<thead><tr><th>Ano</th><th>Ano</th><th>1º sem</th><th>2º sem</th><th>T1</th><th>T2</th><th>T3</th><th>T4</th></tr></thead><tbody>`;
+  const gq = i => (i % 3 === 0 && i > 0 ? "gp" : "");   // separador vertical antes de abr, jul e out (início de cada trimestre)
+  let h2 = `<thead><tr><th>Ano</th>${MESES_ABR.map((m, i) => `<th class="${gq(i)}">${m}</th>`).join("")}</tr></thead><tbody>`;
+  [...ANOS_HIST].reverse().forEach(y => {
+    const ano = mesesDe(y, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]), parcial = ano.length < 12, yy = String(y).slice(2);
+    const rotA = String(y) + (parcial ? "*" : "");
+    const S1 = mesesDe(y, [1, 2, 3, 4, 5, 6]), S2 = mesesDe(y, [7, 8, 9, 10, 11, 12]), T = [1, 2, 3, 4].map(q => mesesDe(y, [3 * q - 2, 3 * q - 1, 3 * q]));
+    h1 += `<tr><td><b>${rotA}</b></td>${cel(ano, rotA, true)}${cel(S1.length === 6 ? S1 : [], `1º sem/${yy}`, true)}${cel(S2.length === 6 ? S2 : [], `2º sem/${yy}`, true)}` +
+      T.map((ms, q) => cel(ms.length === 3 ? ms : [], `T${q + 1}/${yy}`, true)).join("") + "</tr>";
+    h2 += `<tr><td><b>${rotA}</b></td>` + MESES_ABR.map((mm, i) => { const p = `${y}-${String(i + 1).padStart(2, "0")}`; return IDXH[p] != null ? cel([p], rot(p), true, gq(i)) : `<td class="${gq(i)}"><div class="cel vazio">—</div></td>`; }).join("") + "</tr>";
+  });
+  t1.innerHTML = h1 + "</tbody>"; t2.innerHTML = h2 + "</tbody>";
+  document.querySelectorAll("#hist-real .cel[data-hist], #hist-meses .cel[data-hist]").forEach(c => dicaEm(c, () => dicaHist(c.dataset.rot, c.dataset.hist.split(",")) + (c.dataset.ref ? `<div style="margin-top:4px">◆ Ano de referência da venda ancorada neste mês do calendário (menor fração da folga já realizada).</div>` : "")));
+}
 function atualizar() {
   const r = resolver(); pintarCurva(r);
   RES = calcular(r.se);
@@ -967,6 +1089,9 @@ abas("abas-c-sub", v => { CSUB = v; COMPACTA_DET = null; gradeCompacta(); });
 abas("abas-c-modo", v => { CMODO = v; gradeCompacta(); });
 document.getElementById("c-ref").addEventListener("change", e => { CREF = e.target.checked ? "ano" : "sozinho"; tabelaCotacao(); gradeCompacta(); });
 document.getElementById("compacta-justo").addEventListener("change", e => { COMPACTA_JUSTO = e.target.checked; gradeCompacta(); tabelaCotacao(); });
+abas("abas-h-sub", v => { HSUB = v; historicoRealizado(); });
+abas("abas-h-modo", v => { HMODO = v; historicoRealizado(); });
+historicoRealizado();
 abas("abas-gf-sub", v => { GFSUB = v; graficoMes(); });
 abas("abas-gf-modo", v => { GFMODO = v; graficoMes(); });
 abas("abas-fund", v => { PFUND = v; tabelaFund(); });
