@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Descolamento do Sul · página de teste</title>
+<!-- Página LOCAL de teste do descolamento do Sul (PLD_S − PLD_SE). Separada das páginas do NE e N: sem link no menu delas, não vai ao site nem ao app.
+     Dados: sul_dados.js (ingredientes que não dependem do SE, gerados por `sul.exportar_pagina`). Conta: sul_conta.js (porta de `sul.cotar_sul`,
+     paridade em tests/test_sul_pagina.py). Metodologia: docs/metodologia.md, seções 48–62, decisões D058–D073. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../padrao/base.css">
+<link rel="stylesheet" href="../padrao/painel.css">
+<style>
+  main { grid-template-columns: minmax(0, 1fr); }
+  .faixa-teste { background: var(--v1); color: var(--on-flag); font: 500 0.8rem var(--f-data); padding: 4px 10px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+  .controles { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; font-size: 0.88rem; color: var(--ink-2); }
+  .controles label { display: inline-flex; gap: 6px; align-items: center; }
+  .controles input[type=number], .controles select { width: 86px; font: 500 0.88rem var(--f-data); text-align: right; border: 1px solid var(--rule); border-radius: 4px; padding: 5px 6px; background: var(--bg); color: var(--ink); }
+  .controles select { width: auto; text-align: left; }
+  .btn { font: 500 0.85rem var(--f-body); color: var(--ink-2); background: var(--bg); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .btn.prim { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .btn.ativo { border-color: var(--accent); color: var(--accent); }
+  .rolagem { overflow-x: auto; }
+  table.cot { border-collapse: collapse; width: 100%; min-width: 980px; font-variant-numeric: tabular-nums; }
+  table.cot th, table.cot td { padding: 5px 7px; border-bottom: 1px solid var(--rule); text-align: right; font-size: 0.85rem; white-space: nowrap; }
+  table.cot th { font: 500 0.72rem var(--f-data); color: var(--ink-3); text-transform: none; letter-spacing: 0; }
+  table.cot th.grp { text-align: center; border-bottom: 2px solid var(--rule); color: var(--ink-2); font-size: 0.78rem; }
+  table.cot th:first-child, table.cot td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); font-weight: 500; }
+  table.cot td.gp, table.cot th.gp { border-left: 1px solid var(--rule); }
+  table.cot td.dest { background: var(--accent-soft); font-weight: 600; }
+  table.cot tr.sel td { outline: 1px solid var(--accent); outline-offset: -1px; }
+  table.cot tr.clic { cursor: pointer; }
+  table.cot tr.clic:hover td { background: var(--bg); }
+  table.cot tr.tipo td { font-weight: 600; color: var(--ink-2); background: var(--bg); text-align: left; }
+  .fx { display: block; font-size: 0.68rem; color: var(--ink-3); font-weight: 400; }
+  .det h3 { font: 600 1.02rem var(--f-display); margin: 18px 0 6px; }
+  .det p.leg { margin-top: 4px; }
+  table.det { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  table.det th, table.det td { padding: 3px 10px 3px 0; border: 0; font-size: 0.83rem; text-align: right; white-space: nowrap; }
+  table.det th { color: var(--ink-3); font-weight: 500; }
+  table.det th:first-child, table.det td:first-child { text-align: left; }
+  table.det td.max { font-weight: 600; }
+  table.det td.zero { color: var(--ink-3); }
+  .conta { font: 400 0.82rem var(--f-data); color: var(--ink-2); background: var(--bg); border-radius: 6px; padding: 8px 10px; margin: 6px 0 12px; }
+  .conta b { color: var(--ink); }
+  .abas-met { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .nota-aberta { border-left: 3px solid var(--v1); padding-left: 10px; font-size: 0.86rem; color: var(--ink-2); }
+  .tabs-bt details { border: 0; padding: 0; margin: 8px 0; }
+  .tabs-bt summary { font: 500 0.9rem var(--f-body); color: var(--ink); cursor: pointer; }
+  img.fig { width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 6px; margin: 6px 0 14px; }
+</style>
+</head>
+<body>
+<main>
+  <nav class="nav" aria-label="Páginas">
+    <a class="marca" href="./">Quant Energia</a>
+    <a href="sul.html" aria-current="page">Sul · página de teste</a>
+  </nav>
+
+  <section class="hero" aria-labelledby="titulo">
+    <span class="faixa-teste">PÁGINA LOCAL DE TESTE · não é cotação · separada das páginas do NE e N</span>
+    <span class="rotulo">Descolamento do Sul (PLD_S − PLD_SE) · deck <span id="h-deck"></span> · histórico até <span id="h-d2"></span></span>
+    <h1 id="titulo">Descolamento do Sul: as três metodologias, com a conta aberta</h1>
+    <div class="meta" id="meta"></div>
+    <p class="leg" style="margin-top:8px">Três metodologias calculadas lado a lado para o SE informado: <b>A</b> (climatologia dos anos realizados), <b>B</b> (estrutural: chance de travar × ganho por hora) e <b>C</b> (fração por estado do Sul × patamar atrelado ao SE),
+      mais a cotação em estudo (D069–D073): venda = máx(P90 da C, âncora do mês) + λ × (estresse do semestre − piso); compra = pior lado de baixo realizado (+ λ da compra, avançado). Clique numa linha para abrir a conta de cada metodologia, ano a ano.
+      Só o lado de cima está modelado (D059); o lado de baixo entra como fração da folga até o piso na compra. Nenhum método supera a climatologia fora da amostra em 2026 (seções 50–61 da metodologia).</p>
+  </section>
+
+  <section aria-labelledby="t-entrada">
+    <h2 id="t-entrada">Entrada: SE da mesa e apetite</h2>
+    <div class="bloco">
+      <div class="controles" id="ctl-se"></div>
+      <div class="controles" style="margin-top:10px">
+        <label>λ da venda <input type="number" id="lam" step="0.05" min="0" max="1"></label>
+        <label>piso da venda <select id="regra"><option value="ancora_mes">âncora do mesmo mês (D071)</option><option value="ancora_viz">âncora com mês ±1</option></select></label>
+        <label>compra <select id="compra"><option value="zero">zero + lado de baixo (D072)</option><option value="P10">P10 da C + lado de baixo</option></select></label>
+        <label>λ da compra (avançado) <input type="number" id="lamc" step="0.05" min="0" max="1"></label>
+        <label>estresse da compra <select id="refc"><option value="fisico">físico (Sul no piso nas horas abaixo)</option><option value="historico">histórico (pior fração da folga)</option></select></label>
+        <button type="button" class="btn" id="btn-padrao">Voltar ao padrão</button>
+      </div>
+      <p class="leg" id="leg-par"></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-res">
+    <h2 id="t-res">Resultado por produto</h2>
+    <div class="bloco">
+      <div class="abas-met">
+        <button type="button" class="btn ativo" data-v="ano">Anos e semestres</button>
+        <button type="button" class="btn" data-v="tri">Trimestres</button>
+        <button type="button" class="btn" data-v="mes">Meses</button>
+      </div>
+      <div class="rolagem"><table class="cot" id="tab-res"></table></div>
+      <p class="leg">R$/MWh. A: compra = pior ano elegível, venda = melhor (ano entre parênteses); mês em que o ano não era elegível entra como zero. B: pior e melhor ano climático, % = horas travadas previstas. C: P10, justo (média das 2000 séries) e P90.
+        Âncora e estresse: do histórico realizado com o SE informado e a forma horária de cada mês. Cotação: venda e compra pela regra escolhida acima.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-det" id="sec-det">
+    <h2 id="t-det">Conta aberta: <span id="det-nome">clique num produto</span></h2>
+    <div class="bloco det" id="det"></div>
+  </section>
+
+  <section aria-labelledby="t-bt">
+    <h2 id="t-bt">O que o backtest mostrou (só leitura)</h2>
+    <div class="bloco tabs-bt" id="bt"></div>
+    <p class="leg">Tabelas das seções 50 a 62 de <code>docs/metodologia.md</code>. Decks de 2024 a 2026, alvos até set/26, SE realizado como insumo, histórico até D−2. Rótulos: 2026 é o primeiro ano do regime novo com seca no Sul e está fora de qualquer faixa estimada até 2025.</p>
+  </section>
+
+  <section aria-labelledby="t-fund">
+    <h2 id="t-fund">Diagnóstico e questões abertas</h2>
+    <div class="bloco">
+      <p class="nota-aberta"><b>Q9.</b> O justo da C sobe com o SE (patamar da reta ≈ 62 + 0,99 × SE; SE nas horas travadas ≈ 0,64 do mês), enquanto a âncora cai com o SE. Nos 13 meses realizados com trava, a correlação entre o SE do mês e o ganho por hora travada é +0,39.
+        <b>Lado de baixo:</b> só 4 meses desde 2021 com mais de 1% das horas abaixo; set/26 teve a maior ENA de setembro da série e o Sul no piso em 71% dessas horas; fração da folga de −0,012 a −0,031. <b>B:</b> física correta (53% × 55% em mar/26 com insumos realizados) mas insumos erram na escala em que a trava vira (±1 GW).</p>
+      <div class="grid2" style="margin-top:12px">
+        <div><img class="fig" src="sul_fig/01_serie_mensal.png" alt="Série mensal do descolamento do Sul"><img class="fig" src="sul_fig/04_intensidade_se_x_s.png" alt="SE × Sul nas horas travadas"></div>
+        <div><img class="fig" src="sul_fig/02_mes_hora.png" alt="Mês × hora"><img class="fig" src="sul_fig/03_resposta_fisica.png" alt="Chance de travar por déficit"></div>
+      </div>
+    </div>
+  </section>
+  <p class="aviso">Página de pesquisa, local. Nada aqui foi validado como cotação; o Sul só tem um episódio do regime novo (2026). Decisões e limites em <code>docs/metodologia.md</code> (seções 48–62).</p>
+</main>
+<script src="sul_dados.js"></script>
+<script src="sul_conta.js"></script>
+<script>
+(function () {
+  const D = window.SUL_DADOS, K = window.SulConta;
+  const fmt = (v, c = 1) => (v == null || Number.isNaN(v)) ? "—" : v.toLocaleString("pt-BR", { minimumFractionDigits: c, maximumFractionDigits: c });
+  const pct = (v) => (v == null || Number.isNaN(v)) ? "—" : Math.round(100 * v) + "%";
+  const mesNome = (m) => ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"][+m.slice(5,7)-1] + "/" + m.slice(2,4);
+  document.getElementById("h-deck").textContent = D.deck; document.getElementById("h-d2").textContent = D.d_menos_2;
+  document.getElementById("meta").innerHTML = `<span class="atualizado">dados gerados em ${D.gerado}</span>`;
+  const anos = [...new Set(D.meses.map((m) => +m.slice(0,4)))];
+  const ctl = document.getElementById("ctl-se");
+  ctl.innerHTML = `<span>SE plano (R$/MWh)</span><input type="number" id="se-plano" value="235" step="5"> <span style="color:var(--ink-3)">ou por ano:</span>` + anos.map((a) => `<label>${a} <input type="number" class="se-ano" data-ano="${a}" step="5" placeholder="plano"></label>`).join("");
+  const P = Object.assign({}, D.parametros_padrao);
+  const el = (id) => document.getElementById(id);
+  function lerParams() {
+    P.lam = +el("lam").value; P.regra = el("regra").value; P.compra = el("compra").value; P.lam_compra = +el("lamc").value; P.estresse_compra_ref = el("refc").value;
+    el("leg-par").textContent = `venda = máx(P90 da C, ${P.regra === "ancora_mes" ? "âncora do mesmo mês" : "âncora ±1 mês"}) + ${P.lam} × máx(estresse do semestre − piso, 0); compra = ${P.compra === "zero" ? "0" : "P10 da C"} + pior lado de baixo realizado (mês ±1)` + (P.lam_compra ? ` + ${P.lam_compra} × (estresse ${P.estresse_compra_ref} − piso)` : "") + `. C: núcleo em EARM de ${D.C.kernel} pontos; patamar = ${fmt(D.C.reta.a,0)} + ${fmt(D.C.reta.b,2)} × SE (${D.C.reta.n} meses); SE nas horas travadas = ${fmt(D.C.fator,2)} × SE do mês.`;
+  }
+  function escreverParams() { el("lam").value = P.lam; el("regra").value = P.regra; el("compra").value = P.compra; el("lamc").value = P.lam_compra; el("refc").value = P.estresse_compra_ref; }
+  function seMensal() {
+    const plano = +el("se-plano").value || 0; const porAno = {};
+    document.querySelectorAll(".se-ano").forEach((i) => { if (i.value !== "") porAno[i.dataset.ano] = +i.value; });
+    const out = {}; for (const m of D.meses) out[m] = porAno[m.slice(0,4)] != null ? porAno[m.slice(0,4)] : plano; return out;
+  }
+  let R = null, vista = "ano", selecionado = null;
+  function recalcular() { lerParams(); R = K.cotar(D, seMensal(), P); desenharTabela(); if (selecionado) abrirDetalhe(selecionado); }
+  function linhas() {
+    if (vista === "mes") return D.meses.map((m) => [m, mesNome(m), R.mes[m]]);
+    const ks = Object.keys(R.produtos); const ord = (k) => { const a = +k.slice(-2); const t = k[0] === "A" ? 0 : k[0] === "S" ? +k[1] : 2 + (+k[1]); return a * 10 + t; };
+    return ks.filter((k) => vista === "tri" ? k[0] === "T" : k[0] !== "T").sort((x, y) => ord(x) - ord(y)).map((k) => [k, k.startsWith("A-") ? "Ano " + k.slice(2) : k, R.produtos[k]]);
+  }
+  function desenharTabela() {
+    const t = el("tab-res");
+    let h = `<thead><tr><th></th><th class="grp gp" colspan="3">A · climatologia</th><th class="grp gp" colspan="4">B · estrutural</th><th class="grp gp" colspan="3">C · estado × SE</th><th class="grp gp" colspan="2">âncora e estresse</th><th class="grp gp" colspan="2">cotação (D071–D073)</th></tr>
+      <tr><th>produto</th><th class="gp">compra</th><th>justo</th><th>venda</th><th class="gp">compra</th><th>justo</th><th>venda</th><th>% horas</th><th class="gp">P10</th><th>justo</th><th>P90</th><th class="gp">âncora</th><th>estresse</th><th class="gp">compra</th><th>venda</th></tr></thead><tbody>`;
+    for (const [k, nome, r] of linhas()) {
+      h += `<tr class="clic ${selecionado && selecionado[0] === k ? "sel" : ""}" data-k="${k}" data-nome="${nome}"><td>${nome}</td>
+        <td class="gp">${fmt(r.A.compra)}</td><td>${fmt(r.A.justo)}</td><td>${fmt(r.A.venda)}<span class="fx">${r.A.ano_venda ?? ""}</span></td>
+        <td class="gp">${fmt(r.B.compra)}</td><td>${fmt(r.B.justo)}</td><td>${fmt(r.B.venda)}<span class="fx">${r.B.ano_venda ?? ""}</span></td><td>${pct(r.B.frac_media)}</td>
+        <td class="gp">${fmt(r.P10)}</td><td>${fmt(r.justo)}</td><td>${fmt(r.P90)}</td>
+        <td class="gp">${fmt(r.ancora)}</td><td>${fmt(r.estresse)}</td>
+        <td class="gp dest">${fmt(r.compra)}</td><td class="dest">${fmt(r.venda)}</td></tr>`;
+    }
+    t.innerHTML = h + "</tbody>";
+    t.querySelectorAll("tr.clic").forEach((tr) => tr.addEventListener("click", () => { selecionado = [tr.dataset.k, tr.dataset.nome]; desenharTabela(); abrirDetalhe(selecionado); el("sec-det").scrollIntoView({ behavior: "smooth", block: "start" }); }));
+  }
+  function abrirDetalhe([k, nome]) {
+    const r = vista === "mes" || D.meses.includes(k) ? R.mes[k] : R.produtos[k];
+    if (!r) return;
+    el("det-nome").textContent = nome + " · SE " + (r.se.every((s) => s === r.se[0]) ? fmt(r.se[0], 0) : r.se.map((s) => fmt(s, 0)).join(" / "));
+    const ms = r.meses; const w = ms.map(K.horas); const tw = w.reduce((s, x) => s + x, 0);
+    let h = `<p class="leg">Produto = média dos meses ponderada por horas (${ms.map((m, i) => mesNome(m) + " " + Math.round(1000 * w[i] / tw) / 10 + "%").join(", ")}), calculada cenário a cenário.</p>`;
+    // A
+    h += `<h3>A · climatologia condicional ao SE</h3><p class="leg">Para cada ano em que o mês teve SE acima do piso + 20: fração das horas com Sul acima do SE × máx(patamar do Sul nessas horas − SE, 0). Mês em que o ano não era elegível entra como zero no produto.</p>`;
+    h += `<div class="rolagem"><table class="det"><tr><th>ano</th>${ms.map((m) => `<th>${mesNome(m)}</th>`).join("")}<th>produto</th></tr>`;
+    for (const a of r.A.anos) h += `<tr><td>${a.ano}</td>${a.meses.map((x) => x ? `<td title="${x.frac.toFixed(3)} × máx(${fmt(x.patamar,0)} − SE, 0)">${fmt(x.valor)}<span class="fx">${pct(x.frac)} · pat ${fmt(x.patamar,0)}</span></td>` : `<td class="zero">—<span class="fx">não elegível</span></td>`).join("")}<td class="${a.ano === r.A.ano_venda ? "max" : ""}">${fmt(a.valor)}</td></tr>`;
+    h += `</table></div><div class="conta">compra (pior ano) <b>${fmt(r.A.compra)}</b> · justo (média dos ${r.A.anos.length} anos) <b>${fmt(r.A.justo)}</b> · venda (melhor ano, ${r.A.ano_venda ?? "—"}) <b>${fmt(r.A.venda)}</b></div>`;
+    // B
+    h += `<h3>B · estrutural (trava × ganho)</h3><p class="leg">Por ano climático: hidráulica do Sul daquele ano, carga e renovável do deck, limite de recebimento (LPP dos últimos ${D.B.limite_janela} meses). Chance de travar = logística da margem (b0 = ${fmt(D.B.logistica.b0,2)}, b1 = ${fmt(D.B.logistica.b1,2)}/GW, ${D.B.logistica.n_desc} horas travadas no treino). Ganho por hora = máx(patamar ${fmt(D.B.patamar.patamar,0)} − SE × forma horária, 0).</p>`;
+    h += `<div class="rolagem"><table class="det"><tr><th>ano</th>${ms.map((m) => `<th>${mesNome(m)}</th>`).join("")}<th>produto</th></tr>`;
+    for (const a of r.B.anos) h += `<tr><td>${a.ano}</td>${a.meses.map((x) => `<td title="hidro ${fmt(x.hidro,0)} MW · carga ${fmt(x.carga,0)} · limite ${fmt(x.limite,0)} · margem mediana ${fmt(x.margem_q50,0)}">${fmt(x.valor)}<span class="fx">${pct(x.frac)} · hidro ${fmt(x.hidro/1000,1)} GW · ganho ${fmt(x.ganho_medio,0)}</span></td>`).join("")}<td class="${a.ano === r.B.ano_venda ? "max" : ""}">${fmt(a.valor)}</td></tr>`;
+    h += `</table></div><div class="conta">compra (pior ano) <b>${fmt(r.B.compra)}</b> · justo <b>${fmt(r.B.justo)}</b> · venda (melhor ano, ${r.B.ano_venda ?? "—"}) <b>${fmt(r.B.venda)}</b> · horas travadas previstas ${pct(r.B.frac_media)}. Carga do deck: ${ms.map((m, i) => fmt(r.B.anos[0]?.meses[i]?.carga/1000,1)).join(" / ")} GW; limite ${fmt((r.B.anos[0]?.meses[0]?.limite||0)/1000,1)} GW (fixo no horizonte).</div>`;
+    // C
+    if (r.C) {
+      h += `<h3>C · fração por estado do Sul × patamar atrelado ao SE</h3><p class="leg">Fração de horas travadas de cada uma das 2000 séries do deck = média dos meses candidatos (mesmo mês ±1, elegíveis) ponderada pela distância em EARM (núcleo de ${D.C.kernel} pontos). Patamar = ${fmt(D.C.reta.a,0)} + ${fmt(D.C.reta.b,2)} × SE; ganho por hora = patamar − SE × ${fmt(D.C.fator,2)}.</p>`;
+      h += `<div class="rolagem"><table class="det"><tr><th></th>${ms.map((m) => `<th>${mesNome(m)}</th>`).join("")}</tr>`;
+      const q = (xs, p) => K.quantil(xs, p);
+      h += `<tr><td>EARM das séries (P10 / P50 / P90, %)</td>${r.C.meses.map((x) => `<td>${fmt(q(x.earm,0.1),0)} / ${fmt(q(x.earm,0.5),0)} / ${fmt(q(x.earm,0.9),0)}</td>`).join("")}</tr>`;
+      h += `<tr><td>fração travada (P10 / média / P90)</td>${r.C.meses.map((x) => `<td>${pct(q(x.fracoes,0.1))} / ${pct(x.fracoes.reduce((s,v)=>s+v,0)/x.fracoes.length)} / ${pct(q(x.fracoes,0.9))}</td>`).join("")}</tr>`;
+      h += `<tr><td>patamar da reta · ganho por hora</td>${r.C.meses.map((x) => `<td>${fmt(x.patamar,0)} · ${fmt(x.ganho,0)}</td>`).join("")}</tr>`;
+      h += `<tr><td>descolamento (P10 / justo / P90)</td>${r.C.meses.map((x) => `<td>${fmt(q(x.valores,0.1))} / ${fmt(x.valores.reduce((s,v)=>s+v,0)/x.valores.length)} / ${fmt(q(x.valores,0.9))}</td>`).join("")}</tr>`;
+      h += `<tr><td>candidatos (mês · EARM · fração)</td>${r.C.meses.map((x) => `<td style="white-space:normal;max-width:220px;font-size:0.72rem;color:var(--ink-3)">${x.candidatos.map((c) => `${mesNome(c.mes)} ${fmt(c.earm,0)}% ${pct(c.frac)}`).join("; ")}</td>`).join("")}</tr>`;
+      h += `</table></div><div class="conta">P10 <b>${fmt(r.P10)}</b> · justo <b>${fmt(r.justo)}</b> · P90 <b>${fmt(r.P90)}</b> (produto série a série; mín ${fmt(r.C.min)}, máx ${fmt(r.C.max)}).</div>`;
+    }
+    // venda e compra
+    h += `<h3>Cotação em estudo: venda e compra</h3>`;
+    h += `<div class="rolagem"><table class="det"><tr><th></th>${ms.map((m) => `<th>${mesNome(m)}</th>`).join("")}<th>produto</th></tr>`;
+    h += `<tr><td>âncora do mesmo mês (mês de origem)</td>${r.venda_det.map((e) => `<td>${fmt(e.ancora_mes)}<span class="fx">${e.mes_ancora ? mesNome(e.mes_ancora) : "—"}</span></td>`).join("")}<td>${fmt(r.venda_det.reduce((s,e,i)=>s+w[i]/tw*e.ancora_mes,0))}</td></tr>`;
+    h += `<tr><td>âncora com mês ±1</td>${r.venda_det.map((e) => `<td>${fmt(e.ancora_viz)}<span class="fx">${e.mes_ancora_viz ? mesNome(e.mes_ancora_viz) : "—"}</span></td>`).join("")}<td>${fmt(r.venda_det.reduce((s,e,i)=>s+w[i]/tw*e.ancora_viz,0))}</td></tr>`;
+    h += `<tr><td>estresse do semestre = pior fração (±1) × pior ganho</td>${r.venda_det.map((e) => `<td>${fmt(e.estresse_sem)}<span class="fx">${pct(e.frac_max_viz)} (${e.mes_frac_max ? mesNome(e.mes_frac_max) : "—"}) × ${fmt(e.ganho_max_sem,0)} (${e.mes_ganho_max ? mesNome(e.mes_ganho_max) : "—"})</span></td>`).join("")}<td>${fmt(r.estresse)}</td></tr>`;
+    h += `<tr><td>lado de baixo realizado (fração da folga × folga)</td>${r.compra_det.map((e) => `<td>${fmt(e.valor)}<span class="fx">${e.mes ? mesNome(e.mes) + " · " + fmt(100*e.frac_folga,1) + "% da folga" : "—"}</span></td>`).join("")}<td>${fmt(r.estresse_baixo)}</td></tr>`;
+    if (P.lam_compra) h += `<tr><td>estresse da compra (${P.estresse_compra_ref})</td>${r.compra_av_det.map((e) => `<td>${fmt(e.valor)}<span class="fx">${e.mes ? mesNome(e.mes) : ""}</span></td>`).join("")}<td>${fmt(r.estresse_compra_av)}</td></tr>`;
+    h += `</table></div>`;
+    h += `<div class="conta">piso da venda = máx(P90 ${fmt(r.P90)}, âncora ${fmt(r.ancora)}) = ${fmt(r.piso_venda)}; venda = ${fmt(r.piso_venda)} + ${P.lam} × máx(${fmt(r.estresse)} − ${fmt(r.piso_venda)}, 0) = <b>${fmt(r.venda)}</b><br>
+      piso da compra = ${P.compra === "zero" ? "0" : "P10 " + fmt(r.P10)} + lado de baixo ${fmt(r.estresse_baixo)} = ${fmt(r.piso_compra)}` + (P.lam_compra ? `; compra = ${fmt(r.piso_compra)} + ${P.lam_compra} × mín(${fmt(r.estresse_compra_av)} − ${fmt(r.piso_compra)}, 0) = <b>${fmt(r.compra)}</b>` : `; compra = <b>${fmt(r.compra)}</b>`) + `</div>`;
+    el("det").innerHTML = h;
+  }
+  // backtest (só leitura)
+  const bt = el("bt");
+  bt.innerHTML = (D.tabelas || []).map((t, i) => `<details ${i === 0 ? "open" : ""}><summary>${t.titulo} <span class="fx" style="display:inline">(${t.arquivo})</span></summary><div class="rolagem"><table class="det"><tr>${t.colunas.map((c) => `<th>${c}</th>`).join("")}</tr>${t.linhas.map((l) => `<tr>${l.map((v) => `<td>${typeof v === "number" ? (Number.isInteger(v) ? fmt(v, 0) : fmt(v, Math.abs(v) < 10 ? 2 : 1)) : (v ?? "")}</td>`).join("")}</tr>`).join("")}</table></div></details>`).join("");
+  // eventos
+  document.querySelectorAll(".abas-met button").forEach((b) => b.addEventListener("click", () => { document.querySelectorAll(".abas-met button").forEach((x) => x.classList.toggle("ativo", x === b)); vista = b.dataset.v; desenharTabela(); }));
+  ["lam", "regra", "compra", "lamc", "refc", "se-plano"].forEach((id) => el(id).addEventListener("change", recalcular));
+  document.querySelectorAll(".se-ano").forEach((i) => i.addEventListener("change", recalcular));
+  el("btn-padrao").addEventListener("click", () => { Object.assign(P, D.parametros_padrao); escreverParams(); el("se-plano").value = 235; document.querySelectorAll(".se-ano").forEach((i) => (i.value = "")); recalcular(); });
+  escreverParams(); recalcular();
+  // abrir um produto pela URL: sul.html#T1/27, #S1/27, #A-2027 ou #2027-03
+  const alvo = decodeURIComponent(location.hash.slice(1));
+  if (alvo) { vista = alvo.startsWith("T") ? "tri" : (D.meses.includes(alvo) ? "mes" : "ano"); document.querySelectorAll(".abas-met button").forEach((x) => x.classList.toggle("ativo", x.dataset.v === vista)); selecionado = [alvo, alvo.startsWith("A-") ? "Ano " + alvo.slice(2) : (D.meses.includes(alvo) ? mesNome(alvo) : alvo)]; desenharTabela(); abrirDetalhe(selecionado); }
+})();
+</script>
+</body>
+</html>
