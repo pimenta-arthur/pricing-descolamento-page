@@ -213,7 +213,7 @@
       <div class="rolagem"><table class="curva leitura" id="tab-compacta"></table></div>
       <details class="aviso" id="det-conf"><summary>Conferir o ano</summary>
         <div class="leg" id="compacta-conf" style="display:grid;gap:2px;margin-top:4px"></div>
-        <p class="leg" style="margin-top:6px">Compra pelo ano = o ano cotado sozinho; pelos semestres / trimestres = média por horas dos produtos cotados sozinhos, mais conservadora porque o pior ano muda de período. O justo e a venda são os mesmos nas três contas; só a compra muda com o produto. Backtest só de trimestres e semestres.</p>
+        <p class="leg" style="margin-top:6px">Compra pelo ano = o ano cotado sozinho; pelos semestres / trimestres = média por horas dos produtos cotados sozinhos, mais conservadora porque o pior ano muda de período. O justo e a venda (com a âncora ligada) são os mesmos nas três contas; só a compra muda com o produto. Sem a âncora, a venda também muda e ganha uma coluna por conta. Backtest só de trimestres e semestres.</p>
       </details>
       <p class="leg">Compra / venda de cada período e, em cinza, o SE. Clique em um valor para ver o descritivo. Por padrão cada célula é o produto sozinho; &ldquo;Fechar o ano&rdquo; mostra a contribuição de cada pedaço para o preço do ano.</p>
     </div>
@@ -789,8 +789,10 @@ function gradeCompacta_() {
     const S = cols.slice(1, 3).map(r => ({ ...(r.solo || r), w: r.w })), T = cols.slice(3).filter(Boolean).map(r => ({ ...(r.solo || r), w: r.w }));
     const pt = compraAnoPelosTri(a.meses), vS = media(S, "venda"), vT = T.length === 4 ? media(T, "venda") : null;
     const vendas = [solo.venda, vS, vT].filter(v => v != null), vIgual = vendas.every(v => Math.abs(v - solo.venda) < 0.06);
-    return `<tr><td><b>${a.rot}</b></td><td class="n"><b>${f(solo.compra, y.se)}</b></td><td class="n">${f(media(S, "compra"), y.se)}</td><td class="n">${pt == null ? "—" : f(pt, y.se)}</td>` +
-      (COMPACTA_JUSTO ? `<td class="n">${f(solo.justo, y.se)}</td>` : "") + `<td class="n">${vIgual ? f(solo.venda, y.se) : `${f(solo.venda, y.se)} · ${f(vS, y.se)} · ${vT == null ? "—" : f(vT, y.se)}`}</td></tr>`;
+    const ini = `<tr><td><b>${a.rot}</b></td><td class="n"><b>${f(solo.compra, y.se)}</b></td><td class="n">${f(media(S, "compra"), y.se)}</td><td class="n">${pt == null ? "—" : f(pt, y.se)}</td>` +
+      (COMPACTA_JUSTO ? `<td class="n">${f(solo.justo, y.se)}</td>` : "");
+    // a venda só é igual nas três contas com a âncora (média por horas das vendas mensais); sem ela, uma coluna para cada conta
+    return { vIgual, html: tres => ini + (tres ? `<td class="n"><b>${f(solo.venda, y.se)}</b></td><td class="n">${f(vS, y.se)}</td><td class="n">${vT == null ? "—" : f(vT, y.se)}</td>` : `<td class="n">${f(solo.venda, y.se)}</td>`) + `</tr>` };
   };
 
   const tab = document.getElementById("tab-compacta"), pld = MODO === "pld", f = (v, se) => pld ? n(v + se, 1) : dn(v);
@@ -821,9 +823,9 @@ function gradeCompacta_() {
     if (COMPACTA_DET && COMPACTA_DET.y === a.y && COMPACTA_DET.col != null) { const r = cols[COMPACTA_DET.col];
       if (r) h += `<tr class="meses-row"><td></td><td colspan="8" style="text-align:left">${descritivoProduto(r, COMPACTA_DET.lado)}</td></tr>`; }
   });
-  const lin = confs.filter(Boolean);
-  document.getElementById("compacta-conf").innerHTML = lin.length ? `<table class="det"><thead><tr><th rowspan="2">Ano</th><th class="grupo" colspan="3">Compra</th>${COMPACTA_JUSTO ? `<th class="n" rowspan="2">Justo</th>` : ""}<th class="n" rowspan="2">Venda</th></tr>` +
-    `<tr><th class="n">Pelo ano</th><th class="n">Pelos semestres</th><th class="n">Pelos trimestres</th></tr></thead><tbody>${lin.join("")}</tbody></table>` : "";
+  const lin = confs.filter(Boolean), tres = lin.some(x => !x.vIgual), sub3 = `<th class="n">Pelo ano</th><th class="n">Pelos semestres</th><th class="n">Pelos trimestres</th>`;
+  document.getElementById("compacta-conf").innerHTML = lin.length ? `<table class="det"><thead><tr><th rowspan="2">Ano</th><th class="grupo" colspan="3">Compra</th>${COMPACTA_JUSTO ? `<th class="n" rowspan="2">Justo</th>` : ""}${tres ? `<th class="grupo" colspan="3">Venda</th>` : `<th class="n" rowspan="2">Venda</th>`}</tr>` +
+    `<tr>${sub3}${tres ? sub3 : ""}</tr></thead><tbody>${lin.map(x => x.html(tres)).join("")}</tbody></table>` : "";
   tab.innerHTML = h + "</tbody>";
   tab.querySelectorAll(".exp").forEach(b => b.addEventListener("click", () => { const y = +b.dataset.a; COMPACTA_ABERTOS.has(y) ? COMPACTA_ABERTOS.delete(y) : COMPACTA_ABERTOS.add(y); gradeCompacta(); }));
   tab.querySelectorAll(".clic").forEach(b => b.addEventListener("click", () => {
